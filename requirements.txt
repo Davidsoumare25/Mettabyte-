@@ -1,4 +1,2 @@
 Flask
-request
-tinydb
-gunicorn
+requests
