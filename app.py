@@ -47,15 +47,9 @@ input, textarea, select { width: 100%; padding: 15px; margin: 10px 0; border: 1p
 .back-link { color: var(--blue); text-decoration: none; font-weight: bold; display: inline-block; margin-bottom: 20px; }
 """
 
-# TA NOUVELLE BALISE GOOGLE EST ICI
 META_SEO = """
 <meta name="description" content="METTABYTE - Votre source d'exploration sur les mystères, la technologie de pointe et les découvertes scientifiques.">
 <meta name="google-site-verification" content="dDTFaN2k3Nh2HOiJF_R7J-8PaUw0LZ6enE0yTGFKrSA" />
-<meta name="keywords" content="technologie, sciences, mystères, espace, futur, innovation">
-<meta name="author" content="METTABYTE">
-<meta property="og:title" content="METTABYTE | Exploration Tech & Science">
-<meta property="og:description" content="Plongez dans le futur et découvrez l'inexpliqué.">
-<meta property="og:type" content="website">
 <meta name="robots" content="index, follow">
 """
 
@@ -110,6 +104,12 @@ def delete(id):
     requests.delete(f"{DB_URL}?id=eq.{id}", headers=HEADERS)
     return redirect(f"/{SECRET_ADMIN_PATH}")
 
+# --- C'EST ICI QUE LE FICHIER HTML EST CRÉÉ VIRTUELLEMENT ---
+@app.route('/googleaa97466e31055bc3.html')
+def google_verify():
+    return "google-site-verification: googleaa97466e31055bc3.html"
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
