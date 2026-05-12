@@ -47,8 +47,10 @@ input, textarea, select { width: 100%; padding: 15px; margin: 10px 0; border: 1p
 .back-link { color: var(--blue); text-decoration: none; font-weight: bold; display: inline-block; margin-bottom: 20px; }
 """
 
+# TA BALISE GOOGLE EST ICI DANS META_SEO
 META_SEO = """
 <meta name="description" content="METTABYTE - Votre source d'exploration sur les mystères, la technologie de pointe et les découvertes scientifiques.">
+<meta name="google-site-verification" content="aa97466e31055bc3" />
 <meta name="keywords" content="technologie, sciences, mystères, espace, futur, innovation">
 <meta name="author" content="METTABYTE">
 <meta property="og:title" content="METTABYTE | Exploration Tech & Science">
@@ -101,7 +103,7 @@ def add():
         data = {'titre': request.form['titre'], 'resume': request.form['texte'][:150], 'texte': request.form['texte'], 'categorie': request.form['categorie'], 'img_url': request.form['img_url'], 'ts': int(time.time())}
         requests.post(DB_URL, headers=HEADERS, json=data)
         return redirect(f"/{SECRET_ADMIN_PATH}")
-    return render_template_string(f"<html><head><style>{CSS}</style></head><body><header><span class='logo-text'>PUBLIER</span></header><div class='container'><a href='/{SECRET_ADMIN_PATH}' class='back-link'>← ANNULER</a><form method='post'><input name='titre' placeholder='Titre (utilisez des mots clés)' required><select name='categorie'><option>Mystère</option><option>Technologie</option><option>Sciences</option><option>Découverte</option></select><input name='img_url' placeholder='Lien Image' required><textarea name='texte' rows='10' placeholder='Écrivez un article riche et détaillé...' required></textarea><button type='submit' class='btn'>PUBLIER</button></form></div></body></html>")
+    return render_template_string(f"<html><head><style>{CSS}</style></head><body><header><span class='logo-text'>PUBLIER</span></header><div class='container'><a href='/{SECRET_ADMIN_PATH}' class='back-link'>← ANNULER</a><form method='post'><input name='titre' placeholder='Titre' required><select name='categorie'><option>Mystère</option><option>Technologie</option><option>Sciences</option><option>Découverte</option></select><input name='img_url' placeholder='Lien Image' required><textarea name='texte' rows='10' placeholder='Texte' required></textarea><button type='submit' class='btn'>PUBLIER</button></form></div></body></html>")
 
 @app.route(f'/{SECRET_ADMIN_PATH}/delete/<int:id>')
 def delete(id):
