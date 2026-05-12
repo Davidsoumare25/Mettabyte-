@@ -47,10 +47,10 @@ input, textarea, select { width: 100%; padding: 15px; margin: 10px 0; border: 1p
 .back-link { color: var(--blue); text-decoration: none; font-weight: bold; display: inline-block; margin-bottom: 20px; }
 """
 
-# TA BALISE GOOGLE EST ICI DANS META_SEO
+# TA NOUVELLE BALISE GOOGLE EST ICI
 META_SEO = """
 <meta name="description" content="METTABYTE - Votre source d'exploration sur les mystères, la technologie de pointe et les découvertes scientifiques.">
-<meta name="google-site-verification" content="aa97466e31055bc3" />
+<meta name="google-site-verification" content="dDTFaN2k3Nh2HOiJF_R7J-8PaUw0LZ6enE0yTGFKrSA" />
 <meta name="keywords" content="technologie, sciences, mystères, espace, futur, innovation">
 <meta name="author" content="METTABYTE">
 <meta property="og:title" content="METTABYTE | Exploration Tech & Science">
