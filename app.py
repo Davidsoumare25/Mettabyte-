@@ -26,7 +26,7 @@ def time_ago(ts):
     if diff < 86400: return f"Il y a {diff//3600} h"
     return f"Il y a {diff//86400} jours"
 
-# --- DESIGN CSS ---
+# --- DESIGN & SEO ---
 CSS = """
 :root { --blue: #00d2ff; --purple: #9d50bb; --dark: #050505; }
 body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--dark); color: #eee; }
@@ -47,33 +47,30 @@ input, textarea, select { width: 100%; padding: 15px; margin: 10px 0; border: 1p
 .back-link { color: var(--blue); text-decoration: none; font-weight: bold; display: inline-block; margin-bottom: 20px; }
 """
 
+META_SEO = """
+<meta name="description" content="METTABYTE - Votre source d'exploration sur les mystères, la technologie de pointe et les découvertes scientifiques.">
+<meta name="keywords" content="technologie, sciences, mystères, espace, futur, innovation">
+<meta name="author" content="METTABYTE">
+<meta property="og:title" content="METTABYTE | Exploration Tech & Science">
+<meta property="og:description" content="Plongez dans le futur et découvrez l'inexpliqué.">
+<meta property="og:type" content="website">
+<meta name="robots" content="index, follow">
+"""
+
 # --- ROUTES ---
 @app.route('/')
 def home():
     cat = request.args.get('cat', 'Tous')
     params = {"order": "ts.desc"}
-    if cat != 'Tous':
-        params["categorie"] = f"eq.{cat}"
-    
+    if cat != 'Tous': params["categorie"] = f"eq.{cat}"
     r = requests.get(DB_URL, headers=HEADERS, params=params)
     articles = r.json() if r.status_code == 200 else []
-    
     cats = ["Tous", "Mystère", "Technologie", "Sciences", "Découverte"]
     nav = ''.join([f'<a href="/?cat={c}" class="nav-link {"active" if cat==c else ""}">{c}</a>' for c in cats])
-
     html = '<div class="container">'
     for art in articles:
-        html += f"""
-        <div class="card">
-            <img src="{art['img_url']}" class="card-img" onerror="this.src='https://placehold.co/600x400?text=Image+Lien+Erreur'">
-            <div class="card-body">
-                <a href="/article/{art['id']}" class="card-title">{art['titre']}</a>
-                <p style="color:#888; margin-bottom:20px;">{art['resume']}...</p>
-                <div class="time-badge">{time_ago(art['ts'])}</div>
-                <a href="/article/{art['id']}" class="btn">DÉCOUVRIR</a>
-            </div>
-        </div>"""
-    return render_template_string(f"<html><head><title>METTABYTE</title><meta name='viewport' content='width=device-width, initial-scale=1'><style>{CSS}</style></head><body><header><a href='/' class='logo-text'>METTA<span class='byte-part'>BYTE</span></a></header><div class='nav-categories'>{nav}</div>{html}</div></body></html>")
+        html += f'<div class="card"><img src="{art["img_url"]}" class="card-img" alt="{art["titre"]}" onerror="this.src=\'https://placehold.co/600x400?text=Image+Erreur\'"><div class="card-body"><a href="/article/{art["id"]}" class="card-title">{art["titre"]}</a><p style="color:#888; margin-bottom:20px;">{art["resume"]}...</p><div class="time-badge">{time_ago(art["ts"])}</div><a href="/article/{art["id"]}" class="btn">DÉCOUVRIR</a></div></div>'
+    return render_template_string(f"<html><head><title>METTABYTE | Accueil</title><meta name='viewport' content='width=device-width, initial-scale=1'>{META_SEO}<style>{CSS}</style></head><body><header><a href='/' class='logo-text'>METTA<span class='byte-part'>BYTE</span></a></header><div class='nav-categories'>{nav}</div>{html}</div></body></html>")
 
 @app.route('/article/<int:id>')
 def article(id):
@@ -82,53 +79,29 @@ def article(id):
     art = res[0] if r.status_code == 200 and res else None
     if not art: return redirect('/')
     return render_template_string(f"""
-    <html><head><meta name='viewport' content='width=device-width, initial-scale=1'><style>{CSS}</style></head>
-    <body>
-        <header><a href="/" class="logo-text">METTA<span class="byte-part">BYTE</span></a></header>
-        <div class="container">
-            <a href="javascript:history.back()" class="back-link">← RETOUR</a>
-            <h1 style="color:white; margin:10px 0 20px 0;">{art['titre']}</h1>
-            <img src="{art['img_url']}" style="width:100%; border-radius:20px;">
-            <div style="font-size:18px; line-height:1.8; margin-top:25px; color:#ddd; white-space:pre-wrap;">{art['texte']}</div>
-        </div>
-    </body></html>""")
+    <html><head><title>{art['titre']} | METTABYTE</title><meta name='viewport' content='width=device-width, initial-scale=1'>
+    <meta name="description" content="{art['resume']}">
+    <style>{CSS}</style></head><body><header><a href="/" class="logo-text">METTA<span class="byte-part">BYTE</span></a></header>
+    <div class="container"><a href="javascript:history.back()" class="back-link">← RETOUR</a><h1 style="color:white; margin:10px 0 20px 0;">{art['titre']}</h1>
+    <img src="{art['img_url']}" style="width:100%; border-radius:20px;" alt="{art['titre']}">
+    <div style="font-size:18px; line-height:1.8; margin-top:25px; color:#ddd; white-space:pre-wrap;">{art['texte']}</div></div></body></html>""")
 
 @app.route(f'/{SECRET_ADMIN_PATH}')
 def admin():
     r = requests.get(f"{DB_URL}?order=ts.desc", headers=HEADERS)
     articles = r.json() if r.status_code == 200 else []
-    html = f'<div class="container"><a href="/" class="back-link">← VOIR LE SITE</a><a href="/{SECRET_ADMIN_PATH}/add" class="btn">+ NOUVEL ARTICLE</a><br><br>'
+    html = f'<div class="container"><a href="/" class="back-link">← SITE</a><a href="/{SECRET_ADMIN_PATH}/add" class="btn">+ RÉDIGER</a><br><br>'
     for art in articles:
-        html += f'<div style="background:#111;padding:15px;margin-bottom:10px;border-radius:10px;display:flex;justify-content:space-between;border:1px solid #222;align-items:center;"><span>{art["titre"][:30]}...</span><a href="/{SECRET_ADMIN_PATH}/delete/{art["id"]}" style="color:red;text-decoration:none;font-weight:bold;">Supprimer</a></div>'
-    return render_template_string(f"<html><head><style>{CSS}</style></head><body><header><span class='logo-text'>ADMINISTRATION</span></header>{html}</div></body></html>")
+        html += f'<div style="background:#111;padding:15px;margin-bottom:10px;border-radius:10px;display:flex;justify-content:space-between;border:1px solid #222;align-items:center;"><span>{art["titre"][:30]}...</span><a href="/{SECRET_ADMIN_PATH}/delete/{art["id"]}" style="color:red;text-decoration:none;font-weight:bold;">X</a></div>'
+    return render_template_string(f"<html><head><style>{CSS}</style></head><body><header><span class='logo-text'>ADMIN</span></header>{html}</div></body></html>")
 
 @app.route(f'/{SECRET_ADMIN_PATH}/add', methods=['GET', 'POST'])
 def add():
     if request.method == 'POST':
-        data = {
-            'titre': request.form['titre'], 
-            'resume': request.form['texte'][:100], 
-            'texte': request.form['texte'], 
-            'categorie': request.form['categorie'], 
-            'img_url': request.form['img_url'], 
-            'ts': int(time.time())
-        }
+        data = {'titre': request.form['titre'], 'resume': request.form['texte'][:150], 'texte': request.form['texte'], 'categorie': request.form['categorie'], 'img_url': request.form['img_url'], 'ts': int(time.time())}
         requests.post(DB_URL, headers=HEADERS, json=data)
         return redirect(f"/{SECRET_ADMIN_PATH}")
-    return render_template_string(f"""
-    <html><head><style>{CSS}</style></head><body><header><span class='logo-text'>PUBLIER</span></header>
-    <div class='container'>
-        <a href="/{SECRET_ADMIN_PATH}" class="back-link">← ANNULER</a>
-        <form method='post'>
-            <input name='titre' placeholder='Titre' required>
-            <select name='categorie'>
-                <option>Mystère</option><option>Technologie</option><option>Sciences</option><option>Découverte</option>
-            </select>
-            <input name='img_url' placeholder='Lien direct de l image (.jpg, .png)' required>
-            <textarea name='texte' rows='10' placeholder='Contenu de l article...' required></textarea>
-            <button type='submit' class='btn'>METTRE EN LIGNE</button>
-        </form>
-    </div></body></html>""")
+    return render_template_string(f"<html><head><style>{CSS}</style></head><body><header><span class='logo-text'>PUBLIER</span></header><div class='container'><a href='/{SECRET_ADMIN_PATH}' class='back-link'>← ANNULER</a><form method='post'><input name='titre' placeholder='Titre (utilisez des mots clés)' required><select name='categorie'><option>Mystère</option><option>Technologie</option><option>Sciences</option><option>Découverte</option></select><input name='img_url' placeholder='Lien Image' required><textarea name='texte' rows='10' placeholder='Écrivez un article riche et détaillé...' required></textarea><button type='submit' class='btn'>PUBLIER</button></form></div></body></html>")
 
 @app.route(f'/{SECRET_ADMIN_PATH}/delete/<int:id>')
 def delete(id):
