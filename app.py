@@ -48,7 +48,7 @@ input, textarea, select { width: 100%; padding: 15px; margin: 10px 0; border: 1p
 """
 
 META_SEO = """
-<meta name="description" content="METTABYTE - Votre source d'exploration sur les mystères, la technologie de pointe et les découvertes scientifiques.">
+<meta name="description" content="METTABYTE - Explorez le futur, la technologie et les mystères scientifiques.">
 <meta name="google-site-verification" content="dDTFaN2k3Nh2HOiJF_R7J-8PaUw0LZ6enE0yTGFKrSA" />
 <meta name="robots" content="index, follow">
 """
@@ -76,10 +76,9 @@ def article(id):
     if not art: return redirect('/')
     return render_template_string(f"""
     <html><head><title>{art['titre']} | METTABYTE</title><meta name='viewport' content='width=device-width, initial-scale=1'>
-    <meta name="description" content="{art['resume']}">
     <style>{CSS}</style></head><body><header><a href="/" class="logo-text">METTA<span class="byte-part">BYTE</span></a></header>
     <div class="container"><a href="javascript:history.back()" class="back-link">← RETOUR</a><h1 style="color:white; margin:10px 0 20px 0;">{art['titre']}</h1>
-    <img src="{art['img_url']}" style="width:100%; border-radius:20px;" alt="{art['titre']}">
+    <img src="{art['img_url']}" style="width:100%; border-radius:20px;">
     <div style="font-size:18px; line-height:1.8; margin-top:25px; color:#ddd; white-space:pre-wrap;">{art['texte']}</div></div></body></html>""")
 
 @app.route(f'/{SECRET_ADMIN_PATH}')
@@ -104,9 +103,9 @@ def delete(id):
     requests.delete(f"{DB_URL}?id=eq.{id}", headers=HEADERS)
     return redirect(f"/{SECRET_ADMIN_PATH}")
 
-# --- C'EST ICI QUE LE FICHIER HTML EST CRÉÉ VIRTUELLEMENT ---
+# --- VALIDATION GOOGLE PAR FICHIER HTML ---
 @app.route('/googleaa97466e31055bc3.html')
-def google_verify():
+def google_verify_file():
     return "google-site-verification: googleaa97466e31055bc3.html"
 
 if __name__ == '__main__':
