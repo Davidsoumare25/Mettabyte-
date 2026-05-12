@@ -9,7 +9,11 @@ app = Flask(__name__)
 SUPABASE_URL = "https://xwzjlddgqwlrxgetahvp.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3empsZGRncXdscnhnZXRhaHZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MzY1NTQsImV4cCI6MjA4NTMxMjU1NH0.MsCgDKBz3jXrJ_dOcJ35koaLi-uBpNXoAoaFLAWDbkg"
 DB_URL = f"{SUPABASE_URL}/rest/v1/articles"
-HEADERS = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json"}
+HEADERS = {
+    "apikey": SUPABASE_KEY, 
+    "Authorization": f"Bearer {SUPABASE_KEY}", 
+    "Content-Type": "application/json"
+}
 
 CSS = """
 :root { --blue: #00d2ff; --purple: #9d50bb; --dark: #050505; }
@@ -25,6 +29,7 @@ header { background: #000; padding: 25px 10px; text-align: center; border-bottom
 @app.route('/')
 def home():
     try:
+        # On utilise requests (avec un s) pour appeler Supabase
         r = requests.get(f"{DB_URL}?order=ts.desc", headers=HEADERS)
         articles = r.json() if r.status_code == 200 else []
     except:
@@ -32,7 +37,7 @@ def home():
     
     cards = ""
     for art in articles:
-        cards += f'<div class="card"><h2>{art["titre"]}</h2><p style="color:#888;">{art["resume"]}</p><a href="#" class="btn">LIRE LA SUITE</a></div>'
+        cards += f'<div class="card"><h2>{art.get("titre", "Sans titre")}</h2><p style="color:#888;">{art.get("resume", "")}</p><a href="#" class="btn">LIRE LA SUITE</a></div>'
     
     return render_template_string(f"""
     <html><head>
@@ -40,9 +45,9 @@ def home():
     <meta name="google-site-verification" content="dDTFaN2k3Nh2HOiJF_R7J-8PaUw0LZ6enE0yTGFKrSA" />
     <style>{CSS}</style></head>
     <body><header><div class="logo-text">METTA<span class="byte-part">BYTE</span></div></header>
-    <div class="container">{cards}</div></body></html>""")
+    <div class="container">{cards if cards else "<p>Aucun article pour le moment.</p>"}</div></body></html>""")
 
-# --- LA ROUTE POUR GOOGLE (MÉTHODE FICHIER HTML) ---
+# --- ROUTE POUR GOOGLE ---
 @app.route('/googleaa97466e31055bc3.html')
 def google_verify():
     return "google-site-verification: googleaa97466e31055bc3.html"
@@ -50,4 +55,3 @@ def google_verify():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
-
