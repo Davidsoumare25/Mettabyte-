@@ -5,9 +5,10 @@ from flask import Flask, render_template_string, request, redirect, url_for, Res
 
 app = Flask(__name__)
 
-# --- CONFIGURATION ---
+# --- CONFIGURATION (CORRIGÉE AVEC TA CLÉ) ---
 SUPABASE_URL = "https://xwzjlddgqwlrxgetahvp.supabase.co/rest/v1/articles"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3empsZGRncXdscnhnZXRahvpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MzY1NTQsImV4cCI6MjA4NTMxMjU1NH0.MsCgDKBz3jXrJ_dOcJ35koaLi-uBpNXoAoaFLAWDbkg"
+# Voici ta clé corrigée intégrée ici :
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3empsZGRncXdscnhnZXRhaHZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MzY1NTQsImV4cCI6MjA4NTMxMjU1NH0.MsCgDKBz3jXrJ_dOcJ35koaLi-uBpNXoAoaFLAWDbkg"
 LOGO_URL = "https://i.ibb.co/GfZxNrFq/img-1778540891.png"
 
 HEADERS = {
@@ -26,7 +27,7 @@ BASE_HTML = """
 <head>
     <meta charset="UTF-8">
     <title>{{ title }}</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="{{ logo }}">
     <link rel="apple-touch-icon" href="{{ logo }}">
     <style>
@@ -36,11 +37,11 @@ BASE_HTML = """
         .logo { font-size: 1.8rem; font-weight: 900; color: #fff; text-decoration: none; letter-spacing: 2px; }
         .logo span { color: var(--blue); }
         .nav-cats { display: flex; gap: 15px; overflow-x: auto; padding: 15px; justify-content: center; background: #080808; border-bottom: 1px solid #111; }
-        .cat { color: #888; text-decoration: none; font-size: 0.9rem; font-weight: bold; padding: 5px 10px; }
+        .cat { color: #888; text-decoration: none; font-size: 0.9rem; font-weight: bold; padding: 5px 10px; white-space: nowrap; }
         .cat.active { color: var(--blue); border-bottom: 2px solid var(--blue); }
         .container { width: 92%; max-width: 700px; margin: auto; padding: 20px 0; }
         .card { background: #111; border-radius: 15px; overflow: hidden; margin-bottom: 30px; border: 1px solid #222; }
-        .card-img { width: 100%; height: 230px; object-fit: cover; border-bottom: 1px solid #222; }
+        .card-img { width: 100%; height: 230px; object-fit: cover; background: #1a1a1a; }
         .card-body { padding: 20px; }
         .btn { display: block; background: linear-gradient(135deg, var(--blue), var(--purple)); color: #fff; padding: 14px; text-align: center; border-radius: 12px; text-decoration: none; font-weight: bold; margin-top: 10px; border:none; width:100%; box-sizing:border-box; cursor:pointer; }
         input, textarea, select { width: 100%; padding: 12px; margin: 8px 0; background: #000; border: 1px solid #333; color: #fff; border-radius: 8px; box-sizing: border-box; }
@@ -73,12 +74,12 @@ def home():
     <div class="container">
         {% for a in articles %}
         <div class="card">
-            <img src="{{ a['img_url'] }}" class="card-img" onerror="this.src='https://placehold.co/600x400/111/fff?text=Image+Manquante'">
+            <img src="{{ a.get('img_url') or logo }}" class="card-img">
             <div class="card-body">
-                <span style="color:var(--blue); font-size:12px; font-weight:bold;">{{ a['categorie']|upper if a['categorie'] else 'NEWS' }}</span>
-                <h2 style="margin: 10px 0; font-size: 22px;">{{ a['titre'] }}</h2>
-                <p style="color:#aaa; font-size:14px;">{{ a['resume'] }}...</p>
-                <a href="/article/{{ a['id'] }}" class="btn">LIRE LA SUITE</a>
+                <span style="color:var(--blue); font-size:12px; font-weight:bold;">{{ (a.get('categorie') or 'NEWS')|upper }}</span>
+                <h2 style="margin: 10px 0; font-size: 22px;">{{ a.get('titre') }}</h2>
+                <p style="color:#aaa; font-size:14px;">{{ a.get('resume') }}...</p>
+                <a href="/article/{{ a.get('id') }}" class="btn">LIRE LA SUITE</a>
             </div>
         </div>
         {% endfor %}
@@ -96,31 +97,14 @@ def read_article(id):
     
     content = """
     <div class="container">
-        <img src="{{ art['img_url'] }}" style="width:100%; border-radius:15px; border:1px solid #222;">
-        <h1 style="margin:20px 0;">{{ art['titre'] }}</h1>
-        <div style="white-space:pre-wrap; font-size:18px;">{{ art['texte'] }}</div>
+        <img src="{{ art.get('img_url') or logo }}" style="width:100%; border-radius:15px; border:1px solid #222;">
+        <h1 style="margin:20px 0;">{{ art.get('titre') }}</h1>
+        <div style="white-space:pre-wrap; font-size:18px;">{{ art.get('texte') }}</div>
         <br><a href="/" class="btn" style="background:#222;">RETOUR</a>
     </div>
     """
     return render_template_string(BASE_HTML.replace('{% block content %}{% endblock %}', content), 
-                                title=art['titre'], logo=LOGO_URL, art=art)
-
-@app.route('/sitemap.xml')
-def sitemap():
-    try:
-        r = requests.get(SUPABASE_URL, headers=HEADERS)
-        articles = r.json()
-    except: articles = []
-    xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-    xml += f'<url><loc>{SITE_URL}/</loc><priority>1.0</priority></url>\n'
-    for a in articles:
-        xml += f'<url><loc>{SITE_URL}/article/{a["id"]}</loc><priority>0.8</priority></url>\n'
-    xml += '</urlset>'
-    return Response(xml, mimetype='application/xml')
-
-@app.route('/googleaa97466e31055bc3.html')
-def google_verify():
-    return "google-site-verification: googleaa97466e31055bc3.html"
+                                title=art.get('titre'), logo=LOGO_URL, art=art)
 
 @app.route(f'/{ADMIN_PATH}/', methods=['GET', 'POST'])
 def admin():
@@ -154,32 +138,23 @@ def admin():
     
     admin_ui = """
     <div class="container">
-        <h3>{% if art_edit %}MODIFIER ARTICLE{% else %}NOUVEL ARTICLE{% endif %}</h3>
         <form method="post">
-            <input type="hidden" name="id" value="{{ art_edit['id'] if art_edit else '' }}">
-            <input name="titre" placeholder="Titre" value="{{ art_edit['titre'] if art_edit else '' }}" required>
+            <input type="hidden" name="id" value="{{ art_edit.get('id') if art_edit else '' }}">
+            <input name="titre" placeholder="Titre" value="{{ art_edit.get('titre') if art_edit else '' }}" required>
             <select name="categorie">
                 {% for cat in ["Tech", "Science", "IA", "Espace"] %}
-                <option value="{{cat}}" {% if art_edit and art_edit['categorie'] == cat %}selected{% endif %}>{{cat}}</option>
+                <option value="{{cat}}" {% if art_edit and art_edit.get('categorie') == cat %}selected{% endif %}>{{cat}}</option>
                 {% endfor %}
             </select>
-            <input name="img_url" placeholder="URL Image" value="{{ art_edit['img_url'] if art_edit else '' }}" required>
-            <textarea name="texte" rows="10" placeholder="Contenu" required>{{ art_edit['texte'] if art_edit else '' }}</textarea>
+            <input name="img_url" placeholder="URL Image" value="{{ art_edit.get('img_url') if art_edit else '' }}" required>
+            <textarea name="texte" rows="10" placeholder="Contenu" required>{{ art_edit.get('texte') if art_edit else '' }}</textarea>
             <button type="submit" class="btn">ENREGISTRER</button>
         </form>
         <hr style="margin:30px 0; border:1px solid #222;">
-        <h3>GÉRER LES ARTICLES</h3>
         {% for a in all_arts %}
         <div style="background:#111; padding:15px; border-radius:10px; margin-bottom:10px; border:1px solid #222;">
-            <b>{{ a['titre'] }}</b>
-            <div style="display:flex; gap:10px; margin-top:10px;">
-                <a href="/{{ admin_path }}/?edit={{ a['id'] }}" class="btn" style="background:#333; font-size:12px;">MODIFIER</a>
-                <form method="post" style="flex:1;">
-                    <input type="hidden" name="id" value="{{ a['id'] }}">
-                    <input type="hidden" name="action" value="delete">
-                    <button type="submit" class="btn" style="background:var(--red); font-size:12px;" onclick="return confirm('Supprimer ?')">SUPPRIMER</button>
-                </form>
-            </div>
+            <b>{{ a.get('titre') }}</b>
+            <a href="/{{ admin_path }}/?edit={{ a.get('id') }}" style="color:var(--blue); margin-left:10px;">Modifier</a>
         </div>
         {% endfor %}
     </div>
