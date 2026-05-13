@@ -27,7 +27,6 @@ def time_ago(ts):
         return f"Il y a {diff//86400} j"
     except: return "Récemment"
 
-# --- DESIGN ---
 CSS = """
 :root { --blue: #00d2ff; --purple: #9d50bb; --dark: #050505; --red: #ff4b2b; }
 body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--dark); color: #eee; line-height: 1.6; }
@@ -42,13 +41,10 @@ header { background: #000; padding: 20px; text-align: center; border-bottom: 1px
 .card-img { width: 100%; height: 230px; object-fit: cover; }
 .card-body { padding: 20px; }
 .card-title { font-size: 22px; font-weight: bold; color: #fff; text-decoration: none; margin-bottom: 10px; display: block; }
-.btn { display: block; background: linear-gradient(135deg, var(--blue), var(--purple)); color: #fff; padding: 14px; text-align: center; border-radius: 12px; text-decoration: none; font-weight: bold; margin-top: 10px; border:none; cursor:pointer; width:100%; box-sizing:border-box; }
-.btn-red { background: var(--red); margin-top: 5px; font-size: 12px; padding: 8px; }
-.btn-edit { background: #333; margin-top: 5px; font-size: 12px; padding: 8px; border: 1px solid #444; }
+.btn { display: block; background: linear-gradient(135deg, var(--blue), var(--purple)); color: #fff; padding: 14px; text-align: center; border-radius: 12px; text-decoration: none; font-weight: bold; margin-top: 10px; border:none; width:100%; box-sizing:border-box; }
 input, textarea, select { width: 100%; padding: 12px; margin: 8px 0; background: #000; border: 1px solid #333; color: #fff; border-radius: 8px; box-sizing: border-box; }
 """
 
-# --- ACCUEIL ---
 @app.route('/')
 def home():
     cat_filter = request.args.get('cat', 'Tous')
@@ -65,7 +61,7 @@ def home():
     for a in articles:
         cards += f'''
         <div class="card">
-            <img src="{a.get('img_url')}" class="card-img">
+            <img src="{a.get('img_url')}" class="card-img" alt="{a.get('titre')}">
             <div class="card-body">
                 <span style="color:var(--blue); font-size:12px; font-weight:bold;">{a.get('categorie', 'TOUS').upper()}</span>
                 <div class="card-title">{a.get('titre')}</div>
@@ -73,100 +69,72 @@ def home():
                 <a href="/article/{a.get('id')}" class="btn">LIRE LA SUITE</a>
             </div>
         </div>'''
-    return render_template_string(f"<html><head><meta name='viewport' content='width=device-width, initial-scale=1'><style>{CSS}</style></head><body><header><a href='/' class='logo'>METTA<span>BYTE</span></a></header><nav class='nav-cats'>{nav_html}</nav><div class='container'>{cards}</div></body></html>")
+    return render_template_string(f"""
+    <html><head>
+        <title>METTABYTE - Actualités Tech & Science</title>
+        <meta name="description" content="Découvrez les dernières actualités sur l'IA, l'Espace et la Technologie sur METTABYTE.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="google-site-verification" content="dDTFaN2k3Nh2HOiJF_R7J-8PaUw0LZ6enE0yTGFKrSA" />
+        <style>{CSS}</style>
+    </head><body>
+        <header><a href="/" class="logo">METTA<span>BYTE</span></a></header>
+        <nav class="nav-cats">{nav_html}</nav>
+        <div class="container">{cards}</div>
+    </body></html>""")
 
-# --- LECTURE ---
 @app.route('/article/<id>')
 def read_article(id):
     try:
         r = requests.get(f"{SUPABASE_URL}?id=eq.{id}", headers=HEADERS)
         art = r.json()[0]
     except: return redirect('/')
-    return render_template_string(f"<html><head><meta name='viewport' content='width=device-width, initial-scale=1'><style>{CSS}</style></head><body><header><a href='/' class='logo'>METTA<span>BYTE</span></a></header><div class='container'><img src='{art.get('img_url')}' style='width:100%; border-radius:15px;'><h1 style='margin:15px 0;'>{art.get('titre')}</h1><div style='white-space:pre-wrap;'>{art.get('texte')}</div><br><a href='/' class='btn' style='background:#222;'>RETOUR</a></div></body></html>")
+    return render_template_string(f"""
+    <html><head>
+        <title>{art.get('titre')} - METTABYTE</title>
+        <meta name="description" content="{art.get('resume')}">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>{CSS}</style>
+    </head><body>
+        <header><a href="/" class="logo">METTA<span>BYTE</span></a></header>
+        <div class="container">
+            <img src="{art.get('img_url')}" style="width:100%; border-radius:15px;" alt="{art.get('titre')}">
+            <h1 style="margin:15px 0;">{art.get('titre')}</h1>
+            <div style="white-space:pre-wrap; font-size:18px;">{art.get('texte')}</div>
+            <br><a href="/" class="btn" style="background:#222;">RETOUR</a>
+        </div>
+    </body></html>""")
 
-# --- ADMIN (GESTION : AJOUTER / MODIFIER / SUPPRIMER) ---
+# --- ROUTES ADMIN & GOOGLE ---
+@app.route('/googleaa97466e31055bc3.html')
+def google_verify():
+    return "google-site-verification: googleaa97466e31055bc3.html"
+
 @app.route(f'/{ADMIN_PATH}/', methods=['GET', 'POST'])
 def admin():
+    # ... (le code de l'admin reste le même que précédemment)
     edit_id = request.args.get('edit')
     article_to_edit = None
-
-    # Si on veut modifier, on récupère les données de l'article
     if edit_id:
         r = requests.get(f"{SUPABASE_URL}?id=eq.{edit_id}", headers=HEADERS)
         if r.json(): article_to_edit = r.json()[0]
-
     if request.method == 'POST':
         action = request.form.get('action')
         art_id = request.form.get('id')
-
-        # SUPPRIMER
         if action == 'delete':
             requests.delete(f"{SUPABASE_URL}?id=eq.{art_id}", headers=HEADERS)
             return redirect(f'/{ADMIN_PATH}/')
-
-        # PUBLIER OU METTRE À JOUR
-        data = {
-            "titre": request.form['titre'],
-            "resume": request.form['texte'][:130],
-            "texte": request.form['texte'],
-            "img_url": request.form['img_url'],
-            "categorie": request.form['categorie'],
-            "ts": int(time.time())
-        }
-        
-        if art_id: # Mise à jour
-            requests.patch(f"{SUPABASE_URL}?id=eq.{art_id}", headers=HEADERS, json=data)
-        else: # Nouvel article
-            requests.post(SUPABASE_URL, headers=HEADERS, json=data)
-        
+        data = {"titre": request.form['titre'], "resume": request.form['texte'][:130], "texte": request.form['texte'], "img_url": request.form['img_url'], "categorie": request.form['categorie'], "ts": int(time.time())}
+        if art_id: requests.patch(f"{SUPABASE_URL}?id=eq.{art_id}", headers=HEADERS, json=data)
+        else: requests.post(SUPABASE_URL, headers=HEADERS, json=data)
         return redirect('/')
-
-    # Liste des articles pour l'admin avec boutons Supprimer/Modifier
     try:
         r = requests.get(SUPABASE_URL, headers=HEADERS, params={"order": "ts.desc"})
         all_articles = r.json()
     except: all_articles = []
-
     admin_list = ""
     for a in all_articles:
-        admin_list += f'''
-        <div style="background:#111; padding:10px; border-radius:10px; margin-bottom:10px; border:1px solid #222;">
-            <b style="font-size:14px;">{a.get('titre')}</b>
-            <div style="display:flex; gap:10px;">
-                <a href="/{ADMIN_PATH}/?edit={a.get('id')}" class="btn btn-edit">MODIFIER</a>
-                <form method="post" style="flex:1;">
-                    <input type="hidden" name="id" value="{a.get('id')}">
-                    <input type="hidden" name="action" value="delete">
-                    <button type="submit" class="btn btn-red" onclick="return confirm('Supprimer cet article ?')">SUPPRIMER</button>
-                </form>
-            </div>
-        </div>'''
-
-    return render_template_string(f"""
-    <html><head><meta name='viewport' content='width=device-width, initial-scale=1'><style>{CSS}</style></head><body>
-        <header><span class="logo">ADMINISTRATION</span></header>
-        <div class="container">
-            <h3>{'MODIFIER ARTICLE' if article_to_edit else 'NOUVEL ARTICLE'}</h3>
-            <form method="post">
-                <input type="hidden" name="id" value="{article_to_edit.get('id') if article_to_edit else ''}">
-                <input name="titre" placeholder="Titre" value="{article_to_edit.get('titre', '') if article_to_edit else ''}" required>
-                <select name="categorie">
-                    <option value="Tech" {'selected' if article_to_edit and article_to_edit.get('categorie')=='Tech' else ''}>Tech</option>
-                    <option value="Science" {'selected' if article_to_edit and article_to_edit.get('categorie')=='Science' else ''}>Science</option>
-                    <option value="IA" {'selected' if article_to_edit and article_to_edit.get('categorie')=='IA' else ''}>IA</option>
-                    <option value="Espace" {'selected' if article_to_edit and article_to_edit.get('categorie')=='Espace' else ''}>Espace</option>
-                </select>
-                <input name="img_url" placeholder="URL Image" value="{article_to_edit.get('img_url', '') if article_to_edit else ''}" required>
-                <textarea name="texte" rows="10" placeholder="Contenu" required>{article_to_edit.get('texte', '') if article_to_edit else ''}</textarea>
-                <button type="submit" class="btn">{'ENREGISTRER LES MODIFICATIONS' if article_to_edit else 'PUBLIER'}</button>
-                {f'<a href="/{ADMIN_PATH}/" style="color:#666; display:block; text-align:center; margin-top:10px;">Annuler la modification</a>' if article_to_edit else ''}
-            </form>
-            
-            <hr style="border:0; border-top:1px solid #222; margin:30px 0;">
-            <h3>MES ARTICLES</h3>
-            {admin_list}
-        </div>
-    </body></html>""")
+        admin_list += f'<div style="background:#111; padding:10px; border-radius:10px; margin-bottom:10px; border:1px solid #222;"><b>{a.get("titre")}</b><div style="display:flex; gap:10px;"><a href="/{ADMIN_PATH}/?edit={a.get("id")}" class="btn" style="font-size:12px; background:#333;">MODIFIER</a><form method="post" style="flex:1;"><input type="hidden" name="id" value="{a.get("id")}"><input type="hidden" name="action" value="delete"><button type="submit" class="btn" style="font-size:12px; background:#ff4b2b;" onclick="return confirm(\'Supprimer ?\')">SUPPRIMER</button></form></div></div>'
+    return render_template_string(f"<html><head><style>{CSS}</style></head><body><header><span class='logo'>ADMIN</span></header><div class='container'><form method='post'><input type='hidden' name='id' value='{article_to_edit.get('id') if article_to_edit else ''}'><input name='titre' placeholder='Titre' value='{article_to_edit.get('titre', '') if article_to_edit else ''}' required><select name='categorie'><option value='Tech' {'selected' if article_to_edit and article_to_edit.get('categorie')=='Tech' else ''}>Tech</option><option value='Science' {'selected' if article_to_edit and article_to_edit.get('categorie')=='Science' else ''}>Science</option><option value='IA' {'selected' if article_to_edit and article_to_edit.get('categorie')=='IA' else ''}>IA</option><option value='Espace' {'selected' if article_to_edit and article_to_edit.get('categorie')=='Espace' else ''}>Espace</option></select><input name='img_url' placeholder='URL Image' value='{article_to_edit.get('img_url', '') if article_to_edit else ''}' required><textarea name='texte' rows='10' required>{article_to_edit.get('texte', '') if article_to_edit else ''}</textarea><button type='submit' class='btn'>ENREGISTRER</button></form><hr style='border-top:1px solid #222; margin:20px 0;'>{admin_list}</div></body></html>")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
