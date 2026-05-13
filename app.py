@@ -5,9 +5,10 @@ from flask import Flask, render_template_string, request, redirect
 
 app = Flask(__name__)
 
-# --- CONFIGURATION ---
-SUPABASE_URL = "https://xwzjlddgqwlrxgetahvp.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3empsZGRncXdscnhnZXRhaHZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MzY1NTQsImV4cCI6MjA4NTMxMjU1NH0.MsCgDKBz3jXrJ_dOcJ35koaLi-uBpNXoAoaFLAWDbkgxMjU1NH0.MsCgDKBz3jXrJ_dOcJ35koaLi-uBpNXoAoaFLAWDbkg"
+# --- TES NOUVELLES CLÉS ---
+SUPABASE_URL = "https://xwzjlddgqwlrxgetahvp.supabase.co/rest/v1/articles"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3empsZGRncXdscnhnZXRhaHZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MzY1NTQsImV4cCI6MjA4NTMxMjU1NH0.MsCgDKBz3jXrJ_dOcJ35koaLi-uBpNXoAoaFLAWDbkg"
+
 HEADERS = {
     "apikey": SUPABASE_KEY,
     "Authorization": f"Bearer {SUPABASE_KEY}",
@@ -53,9 +54,10 @@ def home():
         params["categorie"] = f"eq.{cat_filter}"
     
     try:
+        # On demande les données à Supabase
         r = requests.get(SUPABASE_URL, headers=HEADERS, params=params)
-        articles = r.json()
-    except Exception as e:
+        articles = r.json() if r.status_code == 200 else []
+    except:
         articles = []
 
     categories = ["Tous", "Science", "Tech", "Espace", "IA"]
@@ -64,34 +66,27 @@ def home():
     cards = ""
     if isinstance(articles, list):
         for a in articles:
-            # Sécurité : On récupère les données même si les noms de colonnes varient légèrement
-            titre = a.get('titre') or a.get('title') or "Sans titre"
-            image = a.get('img_url') or a.get('image') or "https://placehold.co/600x400?text=METTABYTE"
-            resume = a.get('resume') or a.get('texte', '')[:100]
-            timestamp = a.get('ts') or int(time.time())
-            cat_label = a.get('categorie') or "TOUS"
-
             cards += f'''
             <div class="card">
-                <img src="{image}" class="card-img">
-                <div class="time">{time_ago(timestamp)}</div>
+                <img src="{a.get('img_url', '')}" class="card-img" onerror="this.src='https://placehold.co/600x400?text=Image+Indisponible'">
+                <div class="time">{time_ago(a.get('ts', 0))}</div>
                 <div class="card-body">
-                    <span style="color:var(--blue); font-size:12px; font-weight:bold;">{cat_label.upper()}</span>
-                    <a href="#" class="card-title">{titre}</a>
-                    <p style="color:#aaa; font-size:14px; line-height:1.5;">{resume}...</p>
+                    <span style="color:var(--blue); font-size:12px; font-weight:bold;">{a.get('categorie', 'Tous').upper()}</span>
+                    <a href="#" class="card-title">{a.get('titre', 'Sans titre')}</a>
+                    <p style="color:#aaa; font-size:14px; line-height:1.5;">{a.get('resume', '')}...</p>
                     <a href="#" class="btn">LIRE L'ARTICLE</a>
                 </div>
             </div>
             '''
 
     return render_template_string(f"""
-    <html><head><meta name="viewport" content="width=device-width, initial-scale=1">
+    <html><head><title>METTABYTE</title><meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="google-site-verification" content="dDTFaN2k3Nh2HOiJF_R7J-8PaUw0LZ6enE0yTGFKrSA" />
     <style>{CSS}</style></head><body>
         <header><a href="/" class="logo">METTA<span>BYTE</span></a></header>
         <nav class="nav-cats">{nav_html}</nav>
         <div class="container">
-            {cards if cards else "<p style='text-align:center;color:#666;padding:50px;'>Aucun article trouvé. Publiez-en un sur /moncode123/ </p>"}
+            {cards if cards else "<p style='text-align:center;color:#666;padding:50px;'>Aucun article trouvé. Allez sur /moncode123/ pour publier.</p>"}
         </div>
     </body></html>""")
 
@@ -106,7 +101,7 @@ def admin():
             "categorie": request.form['categorie'],
             "ts": int(time.time())
         }
-        r = requests.post(SUPABASE_URL, headers=HEADERS, json=data)
+        requests.post(SUPABASE_URL, headers=HEADERS, json=data)
         return redirect('/')
     
     return render_template_string(f"""
@@ -121,16 +116,12 @@ def admin():
                     <option value="Espace">Espace</option>
                     <option value="IA">IA</option>
                 </select>
-                <input name="img_url" placeholder="URL de l'image (copiez le lien ici)" required>
-                <textarea name="texte" rows="8" placeholder="Contenu de l'article..." required></textarea>
+                <input name="img_url" placeholder="URL de l'image" required>
+                <textarea name="texte" rows="8" placeholder="Contenu de l'article" required></textarea>
                 <button type="submit" class="btn">METTRE EN LIGNE</button>
             </form>
         </div>
     </body></html>""")
 
-@app.route('/googleaa97466e31055bc3.html')
-def google(): return "google-site-verification: googleaa97466e31055bc3.html"
-
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
-
