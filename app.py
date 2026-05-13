@@ -18,11 +18,13 @@ HEADERS = {
 ADMIN_PATH = "moncode123"
 
 def time_ago(ts):
-    diff = int(time.time()) - ts
-    if diff < 60: return "À l'instant"
-    if diff < 3600: return f"Il y a {diff//60} min"
-    if diff < 86400: return f"Il y a {diff//3600} h"
-    return f"Il y a {diff//86400} j"
+    try:
+        diff = int(time.time()) - int(ts)
+        if diff < 60: return "À l'instant"
+        if diff < 3600: return f"Il y a {diff//60} min"
+        if diff < 86400: return f"Il y a {diff//3600} h"
+        return f"Il y a {diff//86400} j"
+    except: return "Récemment"
 
 CSS = """
 :root { --blue: #00d2ff; --purple: #9d50bb; --dark: #050505; }
@@ -35,8 +37,8 @@ header { background: #000; padding: 20px; text-align: center; border-bottom: 1px
 .cat.active { color: var(--blue); border-bottom: 2px solid var(--blue); }
 .container { width: 92%; max-width: 600px; margin: auto; padding: 20px 0; }
 .card { background: #111; border-radius: 15px; overflow: hidden; margin-bottom: 25px; border: 1px solid #222; position: relative; }
-.card-img { width: 100%; height: 230px; object-fit: cover; }
-.card-body { padding: 18px; }
+.card-img { width: 100%; height: 230px; object-fit: cover; background: #1a1a1a; }
+.card-body { padding: 18px; text-align: left; }
 .card-title { font-size: 20px; font-weight: bold; color: #fff; text-decoration: none; margin-bottom: 8px; display: block; }
 .time { position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 8px; font-size: 11px; color: var(--blue); }
 .btn { display: block; background: linear-gradient(135deg, var(--blue), var(--purple)); color: #fff; padding: 12px; text-align: center; border-radius: 10px; text-decoration: none; font-weight: bold; margin-top: 15px; border:none; width:100%; }
@@ -52,27 +54,35 @@ def home():
     
     try:
         r = requests.get(SUPABASE_URL, headers=HEADERS, params=params)
-        articles = r.json() if r.status_code == 200 else []
-    except:
+        articles = r.json()
+    except Exception as e:
         articles = []
 
     categories = ["Tous", "Science", "Tech", "Espace", "IA"]
     nav_html = "".join([f'<a href="/?cat={c}" class="cat {"active" if c==cat_filter else ""}">{c}</a>' for c in categories])
     
     cards = ""
-    for a in articles:
-        cards += f'''
-        <div class="card">
-            <img src="{a.get('img_url')}" class="card-img" onerror="this.src='https://placehold.co/600x400?text=METTABYTE'">
-            <div class="time">{time_ago(a.get('ts'))}</div>
-            <div class="card-body">
-                <span style="color:var(--blue); font-size:12px; font-weight:bold;">{a.get('categorie', 'Tous').upper()}</span>
-                <a href="#" class="card-title">{a.get('titre')}</a>
-                <p style="color:#aaa; font-size:14px;">{a.get('resume')}...</p>
-                <a href="#" class="btn">LIRE L'ARTICLE</a>
+    if isinstance(articles, list):
+        for a in articles:
+            # Sécurité : On récupère les données même si les noms de colonnes varient légèrement
+            titre = a.get('titre') or a.get('title') or "Sans titre"
+            image = a.get('img_url') or a.get('image') or "https://placehold.co/600x400?text=METTABYTE"
+            resume = a.get('resume') or a.get('texte', '')[:100]
+            timestamp = a.get('ts') or int(time.time())
+            cat_label = a.get('categorie') or "TOUS"
+
+            cards += f'''
+            <div class="card">
+                <img src="{image}" class="card-img">
+                <div class="time">{time_ago(timestamp)}</div>
+                <div class="card-body">
+                    <span style="color:var(--blue); font-size:12px; font-weight:bold;">{cat_label.upper()}</span>
+                    <a href="#" class="card-title">{titre}</a>
+                    <p style="color:#aaa; font-size:14px; line-height:1.5;">{resume}...</p>
+                    <a href="#" class="btn">LIRE L'ARTICLE</a>
+                </div>
             </div>
-        </div>
-        '''
+            '''
 
     return render_template_string(f"""
     <html><head><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -80,7 +90,9 @@ def home():
     <style>{CSS}</style></head><body>
         <header><a href="/" class="logo">METTA<span>BYTE</span></a></header>
         <nav class="nav-cats">{nav_html}</nav>
-        <div class="container">{cards if cards else "<p style='text-align:center;color:#666;'>Aucun article dans cette catégorie.</p>"}</div>
+        <div class="container">
+            {cards if cards else "<p style='text-align:center;color:#666;padding:50px;'>Aucun article trouvé. Publiez-en un sur /moncode123/ </p>"}
+        </div>
     </body></html>""")
 
 @app.route(f'/{ADMIN_PATH}/', methods=['GET', 'POST'])
@@ -94,7 +106,7 @@ def admin():
             "categorie": request.form['categorie'],
             "ts": int(time.time())
         }
-        requests.post(SUPABASE_URL, headers=HEADERS, json=data)
+        r = requests.post(SUPABASE_URL, headers=HEADERS, json=data)
         return redirect('/')
     
     return render_template_string(f"""
@@ -102,15 +114,15 @@ def admin():
         <header><span class="logo">PUBLIER</span></header>
         <div class="container">
             <form method="post">
-                <input name="titre" placeholder="Titre" required>
+                <input name="titre" placeholder="Titre de l'article" required>
                 <select name="categorie">
                     <option value="Science">Science</option>
                     <option value="Tech">Tech</option>
                     <option value="Espace">Espace</option>
                     <option value="IA">IA</option>
                 </select>
-                <input name="img_url" placeholder="URL de l'image" required>
-                <textarea name="texte" rows="8" placeholder="Contenu de l'article" required></textarea>
+                <input name="img_url" placeholder="URL de l'image (copiez le lien ici)" required>
+                <textarea name="texte" rows="8" placeholder="Contenu de l'article..." required></textarea>
                 <button type="submit" class="btn">METTRE EN LIGNE</button>
             </form>
         </div>
