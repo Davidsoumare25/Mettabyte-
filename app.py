@@ -7,7 +7,8 @@ app = Flask(__name__)
 
 # --- CONFIGURATION ---
 SUPABASE_URL = "https://xwzjlddgqwlrxgetahvp.supabase.co/rest/v1/articles"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3empsZGRncXdscnhnZXRhaHZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MzY1NTQsImV4cCI6MjA4NTMxMjU1NH0.MsCgDKBz3jXrJ_dOcJ35koaLi-uBpNXoAoaFLAWDbkg"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3empsZGRncXdscnhnZXRahvpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MzY1NTQsImV4cCI6MjA4NTMxMjU1NH0.MsCgDKBz3jXrJ_dOcJ35koaLi-uBpNXoAoaFLAWDbkg"
+LOGO_URL = "https://i.ibb.co/GfZxNrFq/img-1778540891.png"
 
 HEADERS = {
     "apikey": SUPABASE_KEY,
@@ -42,58 +43,82 @@ header { background: #000; padding: 20px; text-align: center; border-bottom: 1px
 .card-img { width: 100%; height: 230px; object-fit: cover; }
 .card-body { padding: 20px; }
 .card-title { font-size: 22px; font-weight: bold; color: #fff; text-decoration: none; margin-bottom: 10px; display: block; }
-.btn { display: block; background: linear-gradient(135deg, var(--blue), var(--purple)); color: #fff; padding: 14px; text-align: center; border-radius: 12px; text-decoration: none; font-weight: bold; margin-top: 10px; border:none; width:100%; box-sizing:border-box; }
+.btn { display: block; background: linear-gradient(135deg, var(--blue), var(--purple)); color: #fff; padding: 14px; text-align: center; border-radius: 12px; text-decoration: none; font-weight: bold; margin-top: 10px; border:none; width:100%; box-sizing:border-box; cursor:pointer; }
 input, textarea, select { width: 100%; padding: 12px; margin: 8px 0; background: #000; border: 1px solid #333; color: #fff; border-radius: 8px; box-sizing: border-box; }
+"""
+
+META_HTML = f"""
+<link rel="icon" type="image/png" href="{LOGO_URL}">
+<link rel="apple-touch-icon" href="{LOGO_URL}">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="METTABYTE">
 """
 
 @app.route('/')
 def home():
     cat_filter = request.args.get('cat', 'Tous')
-    params = {"order": "ts.desc"}
-    if cat_filter != 'Tous': params["categorie"] = f"eq.{cat_filter}"
+    params = {{"order": "ts.desc"}}
+    if cat_filter != 'Tous': params["categorie"] = f"eq.{{cat_filter}}"
     try:
         r = requests.get(SUPABASE_URL, headers=HEADERS, params=params)
         articles = r.json()
     except: articles = []
     
-    nav_html = "".join([f'<a href="/?cat={c}" class="cat {"active" if c==cat_filter else ""}">{c}</a>' for c in ["Tous", "Science", "Tech", "Espace", "IA"]])
+    nav_html = "".join([f'<a href="/?cat={{c}}" class="cat {{"active" if c==cat_filter else ""}}">{{c}}</a>' for c in ["Tous", "Science", "Tech", "Espace", "IA"]])
     
     cards = ""
     for a in articles:
         cards += f'''
         <div class="card">
-            <img src="{a.get('img_url')}" class="card-img" alt="{a.get('titre')}">
+            <img src="{{a.get('img_url')}}" class="card-img" alt="{{a.get('titre')}}">
             <div class="card-body">
-                <span style="color:var(--blue); font-size:12px; font-weight:bold;">{a.get('categorie', 'TOUS').upper()}</span>
-                <div class="card-title">{a.get('titre')}</div>
-                <p style="color:#aaa; font-size:14px;">{a.get('resume')}...</p>
-                <a href="/article/{a.get('id')}" class="btn">LIRE LA SUITE</a>
+                <span style="color:var(--blue); font-size:12px; font-weight:bold;">{{a.get('categorie', 'TOUS').upper()}}</span>
+                <div class="card-title">{{a.get('titre')}}</div>
+                <p style="color:#aaa; font-size:14px;">{{a.get('resume')}}...</p>
+                <a href="/article/{{a.get('id')}}" class="btn">LIRE LA SUITE</a>
             </div>
         </div>'''
-    return render_template_string(f"<html><head><title>METTABYTE - Tech & Science</title><meta name='viewport' content='width=device-width, initial-scale=1'><style>{CSS}</style></head><body><header><a href='/' class='logo'>METTA<span>BYTE</span></a></header><nav class='nav-cats'>{nav_html}</nav><div class='container'>{cards}</div></body></html>")
+    return render_template_string(f"""
+    <html><head><title>METTABYTE - Tech & Science</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    {META_HTML}
+    <style>{CSS}</style></head><body>
+        <header><a href="/" class="logo">METTA<span>BYTE</span></a></header>
+        <nav class="nav-cats">{nav_html}</nav>
+        <div class="container">{cards}</div>
+    </body></html>""")
 
 @app.route('/article/<id>')
 def read_article(id):
     try:
-        r = requests.get(f"{SUPABASE_URL}?id=eq.{id}", headers=HEADERS)
+        r = requests.get(f"{{SUPABASE_URL}}?id=eq.{{id}}", headers=HEADERS)
         art = r.json()[0]
     except: return redirect('/')
-    return render_template_string(f"<html><head><title>{art.get('titre')} - METTABYTE</title><meta name='viewport' content='width=device-width, initial-scale=1'><style>{CSS}</style></head><body><header><a href='/' class='logo'>METTA<span>BYTE</span></a></header><div class='container'><img src='{art.get('img_url')}' style='width:100%; border-radius:15px;'><h1 style='margin:15px 0;'>{art.get('titre')}</h1><div style='white-space:pre-wrap; font-size:18px;'>{art.get('texte')}</div><br><a href='/' class='btn' style='background:#222;'>RETOUR</a></div></body></html>")
+    return render_template_string(f"""
+    <html><head><title>{{art.get('titre')}} - METTABYTE</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    {META_HTML}
+    <style>{CSS}</style></head><body>
+        <header><a href="/" class="logo">METTA<span>BYTE</span></a></header>
+        <div class="container">
+            <img src="{{art.get('img_url')}}" style="width:100%; border-radius:15px;">
+            <h1 style="margin:15px 0;">{{art.get('titre')}}</h1>
+            <div style="white-space:pre-wrap; font-size:18px;">{{art.get('texte')}}</div>
+            <br><a href="/" class="btn" style="background:#222;">RETOUR</a>
+        </div>
+    </body></html>""")
 
-# --- NOUVEAUTÉ : SITEMAP DYNAMIQUE POUR GOOGLE ---
 @app.route('/sitemap.xml')
 def sitemap():
     try:
         r = requests.get(SUPABASE_URL, headers=HEADERS)
         articles = r.json()
     except: articles = []
-
-    xml = f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-    xml += f'  <url><loc>{SITE_URL}/</loc><priority>1.0</priority></url>\n'
-    
+    xml = f'<?xml version="1.0" encoding="UTF-8"?>\\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\\n'
+    xml += f'  <url><loc>{{SITE_URL}}/</loc><priority>1.0</priority></url>\\n'
     for a in articles:
-        xml += f'  <url><loc>{SITE_URL}/article/{a.get("id")}</loc><priority>0.8</priority></url>\n'
-    
+        xml += f'  <url><loc>{{SITE_URL}}/article/{{a.get("id")}}</loc><priority>0.8</priority></url>\\n'
     xml += '</urlset>'
     return Response(xml, mimetype='application/xml')
 
@@ -101,38 +126,31 @@ def sitemap():
 def google_verify():
     return "google-site-verification: googleaa97466e31055bc3.html"
 
-# --- ADMIN ---
-@app.route(f'/{ADMIN_PATH}/', methods=['GET', 'POST'])
+@app.route(f'/{{ADMIN_PATH}}/', methods=['GET', 'POST'])
 def admin():
     edit_id = request.args.get('edit')
     article_to_edit = None
     if edit_id:
-        r = requests.get(f"{SUPABASE_URL}?id=eq.{edit_id}", headers=HEADERS)
+        r = requests.get(f"{{SUPABASE_URL}}?id=eq.{{edit_id}}", headers=HEADERS)
         if r.json(): article_to_edit = r.json()[0]
-    
     if request.method == 'POST':
         action = request.form.get('action')
         art_id = request.form.get('id')
         if action == 'delete':
-            requests.delete(f"{SUPABASE_URL}?id=eq.{art_id}", headers=HEADERS)
-            return redirect(f'/{ADMIN_PATH}/')
-        
-        data = {"titre": request.form['titre'], "resume": request.form['texte'][:130], "texte": request.form['texte'], "img_url": request.form['img_url'], "categorie": request.form['categorie'], "ts": int(time.time())}
-        if art_id: requests.patch(f"{SUPABASE_URL}?id=eq.{art_id}", headers=HEADERS, json=data)
+            requests.delete(f"{{SUPABASE_URL}}?id=eq.{{art_id}}", headers=HEADERS)
+            return redirect(f'/{{ADMIN_PATH}}/')
+        data = {{"titre": request.form['titre'], "resume": request.form['texte'][:130], "texte": request.form['texte'], "img_url": request.form['img_url'], "categorie": request.form['categorie'], "ts": int(time.time())}}
+        if art_id: requests.patch(f"{{SUPABASE_URL}}?id=eq.{{art_id}}", headers=HEADERS, json=data)
         else: requests.post(SUPABASE_URL, headers=HEADERS, json=data)
         return redirect('/')
-
     try:
-        r = requests.get(SUPABASE_URL, headers=HEADERS, params={"order": "ts.desc"})
+        r = requests.get(SUPABASE_URL, headers=HEADERS, params={{"order": "ts.desc"}})
         all_articles = r.json()
     except: all_articles = []
-    
     admin_list = ""
     for a in all_articles:
-        admin_list += f'<div style="background:#111; padding:10px; border-radius:10px; margin-bottom:10px; border:1px solid #222;"><b>{a.get("titre")}</b><div style="display:flex; gap:10px;"><a href="/{ADMIN_PATH}/?edit={a.get("id")}" class="btn" style="font-size:12px; background:#333;">MODIFIER</a><form method="post" style="flex:1;"><input type="hidden" name="id" value="{a.get("id")}"><input type="hidden" name="action" value="delete"><button type="submit" class="btn" style="font-size:12px; background:#ff4b2b;" onclick="return confirm(\'Supprimer ?\')">SUPPRIMER</button></form></div></div>'
-    
-    return render_template_string(f"<html><head><style>{CSS}</style></head><body><header><span class='logo'>ADMIN</span></header><div class='container'><form method='post'><input type='hidden' name='id' value='{article_to_edit.get('id') if article_to_edit else ''}'><input name='titre' placeholder='Titre' value='{article_to_edit.get('titre', '') if article_to_edit else ''}' required><select name='categorie'><option value='Tech' {'selected' if article_to_edit and article_to_edit.get('categorie')=='Tech' else ''}>Tech</option><option value='Science' {'selected' if article_to_edit and article_to_edit.get('categorie')=='Science' else ''}>Science</option><option value='IA' {'selected' if article_to_edit and article_to_edit.get('categorie')=='IA' else ''}>IA</option><option value='Espace' {'selected' if article_to_edit and article_to_edit.get('categorie')=='Espace' else ''}>Espace</option></select><input name='img_url' placeholder='URL Image' value='{article_to_edit.get('img_url', '') if article_to_edit else ''}' required><textarea name='texte' rows='10' required>{article_to_edit.get('texte', '') if article_to_edit else ''}</textarea><button type='submit' class='btn'>ENREGISTRER</button></form><hr style='border-top:1px solid #222; margin:20px 0;'>{admin_list}</div></body></html>")
+        admin_list += f'<div style="background:#111; padding:10px; border-radius:10px; margin-bottom:10px; border:1px solid #222;"><b>{{a.get("titre")}}</b><div style="display:flex; gap:10px;"><a href="/{{ADMIN_PATH}}/?edit={{a.get("id")}}" class="btn" style="font-size:12px; background:#333;">MODIFIER</a><form method="post" style="flex:1;"><input type="hidden" name="id" value="{{a.get("id")}}"><input type="hidden" name="action" value="delete"><button type="submit" class="btn" style="font-size:12px; background:#ff4b2b;" onclick="return confirm(\\'Supprimer ?\\')">SUPPRIMER</button></form></div></div>'
+    return render_template_string(f"<html><head><style>{CSS}</style></head><body><header><span class='logo'>ADMIN</span></header><div class='container'><form method='post'><input type='hidden' name='id' value='{{article_to_edit.get('id') if article_to_edit else ''}}'><input name='titre' placeholder='Titre' value='{{article_to_edit.get('titre', '') if article_to_edit else ''}}' required><select name='categorie'><option value='Tech' {{'selected' if article_to_edit and article_to_edit.get('categorie')=='Tech' else ''}}>Tech</option><option value='Science' {{'selected' if article_to_edit and article_to_edit.get('categorie')=='Science' else ''}}>Science</option><option value='IA' {{'selected' if article_to_edit and article_to_edit.get('categorie')=='IA' else ''}}>IA</option><option value='Espace' {{'selected' if article_to_edit and article_to_edit.get('categorie')=='Espace' else ''}}>Espace</option></select><input name='img_url' placeholder='URL Image' value='{{article_to_edit.get('img_url', '') if article_to_edit else ''}}' required><textarea name='texte' rows='10' required>{{article_to_edit.get('texte', '') if article_to_edit else ''}}</textarea><button type='submit' class='btn'>ENREGISTRER</button></form><hr style='border-top:1px solid #222; margin:20px 0;'>{{admin_list}}</div></body></html>")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
-
