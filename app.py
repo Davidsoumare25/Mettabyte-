@@ -1,7 +1,7 @@
 import os
 import requests
 import time
-from flask import Flask, render_template_string, request, redirect, url_for
+from flask import Flask, render_template_string, request, redirect, url_for, Response
 
 app = Flask(__name__)
 
@@ -17,6 +17,7 @@ HEADERS = {
 }
 
 ADMIN_PATH = "moncode123"
+SITE_URL = "https://mettabyte.onrender.com"
 
 def time_ago(ts):
     try:
@@ -69,18 +70,7 @@ def home():
                 <a href="/article/{a.get('id')}" class="btn">LIRE LA SUITE</a>
             </div>
         </div>'''
-    return render_template_string(f"""
-    <html><head>
-        <title>METTABYTE - Actualités Tech & Science</title>
-        <meta name="description" content="Découvrez les dernières actualités sur l'IA, l'Espace et la Technologie sur METTABYTE.">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="google-site-verification" content="dDTFaN2k3Nh2HOiJF_R7J-8PaUw0LZ6enE0yTGFKrSA" />
-        <style>{CSS}</style>
-    </head><body>
-        <header><a href="/" class="logo">METTA<span>BYTE</span></a></header>
-        <nav class="nav-cats">{nav_html}</nav>
-        <div class="container">{cards}</div>
-    </body></html>""")
+    return render_template_string(f"<html><head><title>METTABYTE - Tech & Science</title><meta name='viewport' content='width=device-width, initial-scale=1'><style>{CSS}</style></head><body><header><a href='/' class='logo'>METTA<span>BYTE</span></a></header><nav class='nav-cats'>{nav_html}</nav><div class='container'>{cards}</div></body></html>")
 
 @app.route('/article/<id>')
 def read_article(id):
@@ -88,52 +78,59 @@ def read_article(id):
         r = requests.get(f"{SUPABASE_URL}?id=eq.{id}", headers=HEADERS)
         art = r.json()[0]
     except: return redirect('/')
-    return render_template_string(f"""
-    <html><head>
-        <title>{art.get('titre')} - METTABYTE</title>
-        <meta name="description" content="{art.get('resume')}">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>{CSS}</style>
-    </head><body>
-        <header><a href="/" class="logo">METTA<span>BYTE</span></a></header>
-        <div class="container">
-            <img src="{art.get('img_url')}" style="width:100%; border-radius:15px;" alt="{art.get('titre')}">
-            <h1 style="margin:15px 0;">{art.get('titre')}</h1>
-            <div style="white-space:pre-wrap; font-size:18px;">{art.get('texte')}</div>
-            <br><a href="/" class="btn" style="background:#222;">RETOUR</a>
-        </div>
-    </body></html>""")
+    return render_template_string(f"<html><head><title>{art.get('titre')} - METTABYTE</title><meta name='viewport' content='width=device-width, initial-scale=1'><style>{CSS}</style></head><body><header><a href='/' class='logo'>METTA<span>BYTE</span></a></header><div class='container'><img src='{art.get('img_url')}' style='width:100%; border-radius:15px;'><h1 style='margin:15px 0;'>{art.get('titre')}</h1><div style='white-space:pre-wrap; font-size:18px;'>{art.get('texte')}</div><br><a href='/' class='btn' style='background:#222;'>RETOUR</a></div></body></html>")
 
-# --- ROUTES ADMIN & GOOGLE ---
+# --- NOUVEAUTÉ : SITEMAP DYNAMIQUE POUR GOOGLE ---
+@app.route('/sitemap.xml')
+def sitemap():
+    try:
+        r = requests.get(SUPABASE_URL, headers=HEADERS)
+        articles = r.json()
+    except: articles = []
+
+    xml = f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    xml += f'  <url><loc>{SITE_URL}/</loc><priority>1.0</priority></url>\n'
+    
+    for a in articles:
+        xml += f'  <url><loc>{SITE_URL}/article/{a.get("id")}</loc><priority>0.8</priority></url>\n'
+    
+    xml += '</urlset>'
+    return Response(xml, mimetype='application/xml')
+
 @app.route('/googleaa97466e31055bc3.html')
 def google_verify():
     return "google-site-verification: googleaa97466e31055bc3.html"
 
+# --- ADMIN ---
 @app.route(f'/{ADMIN_PATH}/', methods=['GET', 'POST'])
 def admin():
-    # ... (le code de l'admin reste le même que précédemment)
     edit_id = request.args.get('edit')
     article_to_edit = None
     if edit_id:
         r = requests.get(f"{SUPABASE_URL}?id=eq.{edit_id}", headers=HEADERS)
         if r.json(): article_to_edit = r.json()[0]
+    
     if request.method == 'POST':
         action = request.form.get('action')
         art_id = request.form.get('id')
         if action == 'delete':
             requests.delete(f"{SUPABASE_URL}?id=eq.{art_id}", headers=HEADERS)
             return redirect(f'/{ADMIN_PATH}/')
+        
         data = {"titre": request.form['titre'], "resume": request.form['texte'][:130], "texte": request.form['texte'], "img_url": request.form['img_url'], "categorie": request.form['categorie'], "ts": int(time.time())}
         if art_id: requests.patch(f"{SUPABASE_URL}?id=eq.{art_id}", headers=HEADERS, json=data)
         else: requests.post(SUPABASE_URL, headers=HEADERS, json=data)
         return redirect('/')
+
     try:
         r = requests.get(SUPABASE_URL, headers=HEADERS, params={"order": "ts.desc"})
         all_articles = r.json()
     except: all_articles = []
+    
     admin_list = ""
     for a in all_articles:
         admin_list += f'<div style="background:#111; padding:10px; border-radius:10px; margin-bottom:10px; border:1px solid #222;"><b>{a.get("titre")}</b><div style="display:flex; gap:10px;"><a href="/{ADMIN_PATH}/?edit={a.get("id")}" class="btn" style="font-size:12px; background:#333;">MODIFIER</a><form method="post" style="flex:1;"><input type="hidden" name="id" value="{a.get("id")}"><input type="hidden" name="action" value="delete"><button type="submit" class="btn" style="font-size:12px; background:#ff4b2b;" onclick="return confirm(\'Supprimer ?\')">SUPPRIMER</button></form></div></div>'
+    
     return render_template_string(f"<html><head><style>{CSS}</style></head><body><header><span class='logo'>ADMIN</span></header><div class='container'><form method='post'><input type='hidden' name='id' value='{article_to_edit.get('id') if article_to_edit else ''}'><input name='titre' placeholder='Titre' value='{article_to_edit.get('titre', '') if article_to_edit else ''}' required><select name='categorie'><option value='Tech' {'selected' if article_to_edit and article_to_edit.get('categorie')=='Tech' else ''}>Tech</option><option value='Science' {'selected' if article_to_edit and article_to_edit.get('categorie')=='Science' else ''}>Science</option><option value='IA' {'selected' if article_to_edit and article_to_edit.get('categorie')=='IA' else ''}>IA</option><option value='Espace' {'selected' if article_to_edit and article_to_edit.get('categorie')=='Espace' else ''}>Espace</option></select><input name='img_url' placeholder='URL Image' value='{article_to_edit.get('img_url', '') if article_to_edit else ''}' required><textarea name='texte' rows='10' required>{article_to_edit.get('texte', '') if article_to_edit else ''}</textarea><button type='submit' class='btn'>ENREGISTRER</button></form><hr style='border-top:1px solid #222; margin:20px 0;'>{admin_list}</div></body></html>")
 
 if __name__ == '__main__':
