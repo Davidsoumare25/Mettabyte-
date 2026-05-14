@@ -12,6 +12,7 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 ADMIN_PASS_ENV = os.environ.get("ADMIN_PASSWORD")
 ADMIN_PATH = "moncode123" 
 LOGO_URL = "https://i.ibb.co/GfZxNrFq/img-1778540891.png"
+MY_EMAIL = "mettabytesite@gmail.com"
 
 HEADERS = {
     "apikey": SUPABASE_KEY,
@@ -29,60 +30,93 @@ BASE_HTML = """
     <title>{{ title }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="icon" href="{{ logo }}">
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,700;1,300&family=Playfair+Display:ital@1&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;700&display=swap" rel="stylesheet">
     
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2847151888169934" crossorigin="anonymous"></script>
 
     <style>
         :root { --blue: #00d2ff; --purple: #9d50bb; --dark: #050505; --gray: #1c1c1e; --white: #f5f0eb; --red: #e63022; }
+        body { font-family: 'DM Sans', sans-serif; margin: 0; background: var(--dark); color: #fff; line-height: 1.6; overflow-x: hidden; }
         
-        body { font-family: 'DM Sans', sans-serif; margin: 0; background: var(--dark); color: #fff; line-height: 1.6; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
-        header { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); padding: 15px; text-align: center; border-bottom: 0.5px solid #333; position: sticky; top:0; z-index:1000; }
-        .logo { font-size: 1.6rem; font-weight: 800; color: #fff; text-decoration: none; letter-spacing: -0.5px; font-family: 'Bebas Neue', sans-serif; }
+        header { 
+            background: rgba(0, 0, 0, 0.9); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            padding: 15px 20px; display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 0.5px solid #333; position: sticky; top:0; z-index:1000; 
+        }
+
+        .menu-btn { background: none; border: none; color: white; font-size: 28px; cursor: pointer; padding: 0; line-height: 1; }
+        .logo { font-size: 1.6rem; font-weight: 800; color: #fff; text-decoration: none; font-family: 'Bebas Neue', sans-serif; letter-spacing: 1px; }
         .logo span { color: var(--blue); }
+        .placeholder-right { width: 28px; }
 
-        /* Emplacement Pub */
-        .ad-slot { width: 100%; margin: 30px auto; min-height: 100px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.03); color: #444; font-size: 10px; text-transform: uppercase; border: 1px dashed #333; border-radius: 8px; }
+        .sidebar {
+            position: fixed; top: 0; left: -300px; width: 300px; height: 100%;
+            background: var(--gray); z-index: 2000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 60px 30px; box-shadow: 15px 0 50px rgba(0,0,0,0.8);
+        }
+        .sidebar.active { left: 0; }
+        .sidebar-close { position: absolute; top: 20px; right: 25px; font-size: 35px; cursor: pointer; color: #666; }
+        .sidebar-link { 
+            display: block; color: white; text-decoration: none; font-size: 1.5rem; 
+            padding: 18px 0; border-bottom: 0.5px solid #333; font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px;
+            transition: 0.2s;
+        }
+        .sidebar-link:hover { color: var(--blue); padding-left: 10px; }
+        
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; z-index: 1500; backdrop-filter: blur(4px); }
+        .overlay.active { display: block; }
 
-        /* Navigation */
-        .nav-container { background: rgba(0,0,0,0.3); border-bottom: 0.5px solid #222; padding: 12px 0; }
-        .nav-cats { display: flex; gap: 12px; overflow-x: auto; padding: 0 20px; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
+        /* Contenu & Cartes */
+        .ad-slot { width: 100%; margin: 30px auto; min-height: 120px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.02); color: #444; font-size: 10px; border: 1px dashed #333; border-radius: 12px; }
+        .nav-container { background: rgba(0,0,0,0.2); border-bottom: 0.5px solid #222; padding: 12px 0; }
+        .nav-cats { display: flex; gap: 12px; overflow-x: auto; padding: 0 20px; -webkit-overflow-scrolling: touch; }
         .nav-cats::-webkit-scrollbar { display: none; }
-        .cat { color: #8e8e93; text-decoration: none; font-size: 0.9rem; font-weight: 600; padding: 8px 18px; white-space: nowrap; border-radius: 20px; background: var(--gray); transition: all 0.2s ease; }
-        .cat.active { color: #fff; background: linear-gradient(135deg, var(--blue), var(--purple)); }
+        .cat { color: #8e8e93; text-decoration: none; font-size: 0.9rem; font-weight: 700; padding: 10px 22px; border-radius: 25px; background: #1c1c1e; white-space: nowrap; transition: 0.3s; }
+        .cat.active { color: #fff; background: linear-gradient(135deg, var(--blue), var(--purple)); box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3); }
 
-        /* Article */
-        .article-body .hero { min-height: 65vh; display: flex; flex-direction: column; justify-content: flex-end; padding: 4rem 5%; position: relative; background-size: cover; background-position: center 20%; }
-        .article-body .hero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, var(--dark) 5%, transparent 95%); }
-        .hero-content { position: relative; z-index: 2; max-width: 1000px; margin: 0 auto; width: 100%; }
-        .hero-tag { color: var(--red); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 1rem; font-weight: 700; }
-        .hero-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(3rem, 10vw, 7rem); line-height: 0.85; margin: 0; }
-        
-        .article-content { max-width: 950px; margin: 0 auto; padding: 3rem 20px; font-size: 1.15rem; }
-        .article-content img { max-width: 100%; height: auto; border-radius: 16px; margin: 2.5rem 0; display: block; }
-        .article-content h2 { font-family: 'Bebas Neue', sans-serif; font-size: 3rem; color: var(--white); margin: 4rem 0 1.5rem; display: flex; align-items: center; gap: 1rem; }
-        .article-content h2::before { content: ''; width: 40px; height: 4px; background: var(--red); }
-        .article-content p { color: #c8c0b8; margin-bottom: 1.8rem; font-weight: 300; }
+        .container { width: 92%; max-width: 650px; margin: auto; padding: 20px 0; }
+        .card { background: #151517; border-radius: 28px; overflow: hidden; margin-bottom: 30px; border: 1px solid #222; transition: 0.3s; }
+        .card-img { width: 100%; height: 280px; object-fit: cover; }
+        .card-body { padding: 25px; }
+        .card-tag { color: var(--blue); font-size: 12px; font-weight: 800; text-transform: uppercase; margin-bottom: 8px; }
+        .card-title { margin: 8px 0; font-size: 24px; font-weight: 700; line-height: 1.2; }
+        .btn { display: block; background: linear-gradient(135deg, var(--blue), var(--purple)); color: #fff; padding: 18px; text-align: center; border-radius: 20px; text-decoration: none; font-weight: 700; margin-top: 15px; border:none; cursor:pointer; }
 
-        /* Composants Mag */
-        .big-quote { font-family: 'Bebas Neue', sans-serif; font-size: clamp(2.5rem, 7vw, 4.5rem); border-left: 6px solid var(--red); padding-left: 2rem; margin: 4rem 0; line-height: 1; }
-        .highlight { background: rgba(230, 48, 34, 0.05); border-left: 4px solid var(--red); padding: 2.5rem; margin: 3rem 0; font-family: 'Playfair Display', serif; font-style: italic; font-size: 1.3rem; border-radius: 0 12px 12px 0; }
-        
-        /* Accueil */
-        .container { width: 92%; max-width: 600px; margin: auto; padding: 20px 0; }
-        .card { background: var(--gray); border-radius: 24px; overflow: hidden; margin-bottom: 25px; border: 0.5px solid #333; transition: transform 0.2s ease; }
-        .card-img { width: 100%; height: 260px; object-fit: cover; }
-        .card-body { padding: 22px; }
-        .card-tag { color: var(--blue); font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; }
-        .card-title { margin: 6px 0; font-size: 22px; font-weight: 700; }
-        .btn { display: block; background: linear-gradient(135deg, var(--blue), var(--purple)); color: #fff; padding: 16px; text-align: center; border-radius: 18px; text-decoration: none; font-weight: 700; margin-top: 15px; border:none; width:100%; box-sizing:border-box; cursor:pointer; }
-        
-        @media (max-width: 768px) { .article-content { padding: 2rem 15px; } .hero-title { font-size: 3.5rem; } }
+        /* Lecture Article */
+        .article-body .hero { min-height: 65vh; display: flex; flex-direction: column; justify-content: flex-end; padding: 5rem 6%; position: relative; background-size: cover; background-position: center; }
+        .article-body .hero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, var(--dark) 8%, transparent 92%); }
+        .hero-content { position: relative; z-index: 2; max-width: 950px; margin: 0 auto; width: 100%; }
+        .hero-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(2.8rem, 9vw, 5.5rem); line-height: 0.95; margin: 0; text-transform: uppercase; }
+        .article-content { max-width: 950px; margin: 0 auto; padding: 3rem 22px; font-size: 1.2rem; color: #d1d1d6; }
     </style>
 </head>
 <body>
-    <header><a href="/" class="logo">METTA<span>BYTE</span></a></header>
+    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+    
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-close" onclick="toggleMenu()">×</div>
+        <div class="sidebar-nav">
+            <a href="/" class="sidebar-link" onclick="toggleMenu()">ACCUEIL</a>
+            <a href="mailto:{{ email }}" class="sidebar-link">NOUS CONTACTER</a>
+            <a href="/article/POLITIQUE_ID" class="sidebar-link">CONFIDENTIALITÉ</a>
+            <p style="margin-top:60px; font-size: 11px; color: #444; letter-spacing: 1px;">METTABYTE DIGITAL MEDIA © 2026</p>
+        </div>
+    </div>
+
+    <header>
+        <button class="menu-btn" onclick="toggleMenu()">☰</button>
+        <a href="/" class="logo">METTA<span>BYTE</span></a>
+        <div class="placeholder-right"></div>
+    </header>
+
     {% block content %}{% endblock %}
+
+    <script>
+        function toggleMenu() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.getElementById('overlay').classList.toggle('active');
+        }
+    </script>
 </body>
 </html>
 """
@@ -109,14 +143,15 @@ def home():
             <div class="card-body">
                 <div class="card-tag">{{ (a.get('categorie') or 'INFO')|upper }}</div>
                 <h2 class="card-title">{{ a.get('titre') }}</h2>
-                <a href="/article/{{ a.get('id') }}" class="btn">LIRE LA SUITE</a>
+                <a href="/article/{{ a.get('id') }}" class="btn">LIRE L'ÉDITION</a>
             </div>
         </div>
         {% endfor %}
     </div>
     """
+    # Note : Remplace POLITIQUE_ID par l'ID réel de ton article de confidentialité si tu le connais
     return render_template_string(BASE_HTML.replace('{% block content %}{% endblock %}', content), 
-                                title="METTABYTE", logo=LOGO_URL, cats=cats, active_cat=cat_filter, articles=articles)
+                                title="METTABYTE | Future Tech", logo=LOGO_URL, cats=cats, active_cat=cat_filter, articles=articles, email=MY_EMAIL)
 
 @app.route('/article/<id>')
 def read_article(id):
@@ -129,82 +164,42 @@ def read_article(id):
     <div class="article-body">
         <section class="hero" style="background-image: url('{{ art.get('img_url') or logo }}')">
             <div class="hero-content">
-                <div class="hero-tag">{{ art.get('categorie') }}</div>
                 <h1 class="hero-title">{{ art.get('titre') }}</h1>
             </div>
         </section>
         <div class="article-content">
-            <div class="ad-slot">PUBLICITÉ - METTABYTE</div> {{ art.get('texte')|safe }}
-            
-            <div class="ad-slot">PUBLICITÉ - METTABYTE</div> <div style="margin-top: 50px; border-top: 1px solid #222; padding-top: 30px;">
-                <a href="/" class="btn" style="background:#3a3a3c; width: fit-content; padding: 12px 40px; display: inline-block;">RETOUR</a>
+            <div class="ad-slot">PUBLICITÉ NATIVE</div>
+            {{ art.get('texte')|safe }}
+            <div class="ad-slot">PUBLICITÉ NATIVE</div>
+            <div style="margin-top: 60px; border-top: 1px solid #222; padding-top: 30px;">
+                <a href="/" class="btn" style="background:#2c2c2e; width: fit-content; padding: 12px 40px; display: inline-block;">RETOUR À L'ACCUEIL</a>
             </div>
         </div>
     </div>
     """
     return render_template_string(BASE_HTML.replace('{% block content %}{% endblock %}', content), 
-                                title=art.get('titre'), logo=LOGO_URL, art=art)
+                                title=art.get('titre'), logo=LOGO_URL, art=art, email=MY_EMAIL)
 
-# ROUTE INDISPENSABLE POUR LA VALIDATION ADSENSE
 @app.route('/ads.txt')
 def ads_txt():
-    # Remplace ca-pub-000... par ton ID réel dans le return
     return "google.com, pub-2847151888169934, DIRECT, f08c47fec0942fa0", 200, {'Content-Type': 'text/plain'}
 
+# --- ADMIN SIMPLIFIÉ ---
 @app.route(f'/{ADMIN_PATH}', methods=['GET', 'POST'])
 def admin():
     if request.method == 'POST' and 'password' in request.form:
         if request.form['password'] == ADMIN_PASS_ENV:
             session['logged_in'] = True
             return redirect(f'/{ADMIN_PATH}')
-        return "Accès refusé."
-
     if not session.get('logged_in'):
-        login_ui = '<div class="container" style="padding-top:100px; text-align:center;"><form method="post"><input type="password" name="password" placeholder="Mot de passe" required><button type="submit" class="btn">ENTRER</button></form></div>'
-        return render_template_string(BASE_HTML.replace('{% block content %}{% endblock %}', login_ui), title="Connexion", logo=LOGO_URL)
-
-    edit_id = request.args.get('edit')
-    art_edit = None
-    if edit_id:
-        r = requests.get(f"{SUPABASE_URL}?id=eq.{edit_id}", headers=HEADERS)
-        if r.json(): art_edit = r.json()[0]
+        return render_template_string(BASE_HTML.replace('{% block content %}{% endblock %}', '<div class="container"><form method="post"><input type="password" name="password" placeholder="Dashboard Pass"><button type="submit" class="btn">ACCÉDER</button></form></div>'), email=MY_EMAIL)
 
     if request.method == 'POST' and 'titre' in request.form:
-        art_id = request.form.get('id')
-        data = {
-            "titre": request.form['titre'],
-            "resume": request.form['texte'][:130],
-            "texte": request.form['texte'],
-            "img_url": request.form['img_url'],
-            "categorie": request.form['categorie'],
-            "ts": int(time.time())
-        }
-        if art_id: requests.patch(f"{SUPABASE_URL}?id=eq.{art_id}", headers=HEADERS, json=data)
-        else: requests.post(SUPABASE_URL, headers=HEADERS, json=data)
+        data = {"titre": request.form['titre'], "texte": request.form['texte'], "img_url": request.form['img_url'], "categorie": request.form['categorie'], "ts": int(time.time())}
+        requests.post(SUPABASE_URL, headers=HEADERS, json=data)
         return redirect(f'/{ADMIN_PATH}')
 
-    r = requests.get(SUPABASE_URL, headers=HEADERS, params={"order": "ts.desc"})
-    all_arts = r.json() if isinstance(r.json(), list) else []
-    
-    admin_ui = """
-    <div class="container">
-        <h3>DESIGN STUDIO</h3>
-        <form method="post">
-            <input type="hidden" name="id" value="{{ art_edit.get('id') if art_edit else '' }}">
-            <input name="titre" placeholder="Titre" value="{{ art_edit.get('titre') if art_edit else '' }}" required>
-            <select name="categorie">
-                {% for cat in ["Tech", "Science", "IA", "Espace", "Santé", "Sport"] %}
-                <option value="{{cat}}" {% if art_edit and art_edit.get('categorie') == cat %}selected{% endif %}>{{cat}}</option>
-                {% endfor %}
-            </select>
-            <input name="img_url" placeholder="URL Image" value="{{ art_edit.get('img_url') if art_edit else '' }}" required>
-            <textarea name="texte" rows="20" placeholder="HTML Magazine...">{{ art_edit.get('texte') if art_edit else '' }}</textarea>
-            <button type="submit" class="btn">PUBLIER</button>
-        </form>
-    </div>
-    """
-    return render_template_string(BASE_HTML.replace('{% block content %}{% endblock %}', admin_ui), 
-                                title="Admin", logo=LOGO_URL, art_edit=art_edit, all_arts=all_arts, admin_path=ADMIN_PATH)
+    return render_template_string(BASE_HTML.replace('{% block content %}{% endblock %}', '<div class="container"><h3>STUDIO ÉDITORIAL</h3><form method="post"><input name="titre" placeholder="Titre de l\'article"><input name="img_url" placeholder="URL de l\'image Hero"><select name="categorie"><option>Tech</option><option>Science</option><option>IA</option><option>Espace</option></select><textarea name="texte" rows="15" placeholder="Contenu HTML..."></textarea><button type="submit" class="btn">PUBLIER</button></form></div>'), email=MY_EMAIL)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
