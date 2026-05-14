@@ -5,11 +5,12 @@ from flask import Flask, render_template_string, request, redirect, url_for, Res
 
 app = Flask(__name__)
 
-# --- CONFIGURATION (CORRIGÉE AVEC TA CLÉ) ---
-SUPABASE_URL = "https://xwzjlddgqwlrxgetahvp.supabase.co/rest/v1/articles"
-# Voici ta clé corrigée intégrée ici :
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3empsZGRncXdscnhnZXRhaHZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MzY1NTQsImV4cCI6MjA4NTMxMjU1NH0.MsCgDKBz3jXrJ_dOcJ35koaLi-uBpNXoAoaFLAWDbkg"
+# --- CONFIGURATION SÉCURISÉE (VIA RENDER) ---
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+ADMIN_PATH = os.environ.get("ADMIN_PATH", "admin-default") # Utilise ta variable Render
 LOGO_URL = "https://i.ibb.co/GfZxNrFq/img-1778540891.png"
+SITE_URL = "https://mettabyte.onrender.com"
 
 HEADERS = {
     "apikey": SUPABASE_KEY,
@@ -18,9 +19,7 @@ HEADERS = {
     "Prefer": "return=representation"
 }
 
-ADMIN_PATH = "moncode123"
-SITE_URL = "https://mettabyte.onrender.com"
-
+# --- DESIGN HTML ---
 BASE_HTML = """
 <!DOCTYPE html>
 <html lang="fr">
@@ -28,6 +27,8 @@ BASE_HTML = """
     <meta charset="UTF-8">
     <title>{{ title }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{ description }}">
+    <meta name="keywords" content="{{ keywords }}">
     <link rel="icon" href="{{ logo }}">
     <link rel="apple-touch-icon" href="{{ logo }}">
     <style>
@@ -43,6 +44,7 @@ BASE_HTML = """
         .card { background: #111; border-radius: 15px; overflow: hidden; margin-bottom: 30px; border: 1px solid #222; }
         .card-img { width: 100%; height: 230px; object-fit: cover; background: #1a1a1a; }
         .card-body { padding: 20px; }
+        .tag { background: #222; color: #aaa; font-size: 10px; padding: 3px 8px; border-radius: 5px; margin-right: 5px; text-transform: uppercase; border: 1px solid #333; }
         .btn { display: block; background: linear-gradient(135deg, var(--blue), var(--purple)); color: #fff; padding: 14px; text-align: center; border-radius: 12px; text-decoration: none; font-weight: bold; margin-top: 10px; border:none; width:100%; box-sizing:border-box; cursor:pointer; }
         input, textarea, select { width: 100%; padding: 12px; margin: 8px 0; background: #000; border: 1px solid #333; color: #fff; border-radius: 8px; box-sizing: border-box; }
     </style>
@@ -74,9 +76,16 @@ def home():
     <div class="container">
         {% for a in articles %}
         <div class="card">
-            <img src="{{ a.get('img_url') or logo }}" class="card-img">
+            <img src="{{ a.get('img_url') or logo }}" class="card-img" onerror="this.src='{{ logo }}'">
             <div class="card-body">
-                <span style="color:var(--blue); font-size:12px; font-weight:bold;">{{ (a.get('categorie') or 'NEWS')|upper }}</span>
+                <div style="margin-bottom:8px;">
+                    <span style="color:var(--blue); font-size:12px; font-weight:bold; margin-right:10px;">{{ (a.get('categorie') or 'NEWS')|upper }}</span>
+                    {% if a.get('mots_cles') %}
+                        {% for tag in a.get('mots_cles').split(',') %}
+                            <span class="tag">{{ tag.strip() }}</span>
+                        {% endfor %}
+                    {% endif %}
+                </div>
                 <h2 style="margin: 10px 0; font-size: 22px;">{{ a.get('titre') }}</h2>
                 <p style="color:#aaa; font-size:14px;">{{ a.get('resume') }}...</p>
                 <a href="/article/{{ a.get('id') }}" class="btn">LIRE LA SUITE</a>
@@ -86,7 +95,8 @@ def home():
     </div>
     """
     return render_template_string(BASE_HTML.replace('{% block content %}{% endblock %}', content), 
-                                title="METTABYTE", logo=LOGO_URL, cats=cats, active_cat=cat_filter, articles=articles)
+                                title="METTABYTE - Tech & Science", description="Actu High-Tech", 
+                                keywords="tech, science", logo=LOGO_URL, cats=cats, active_cat=cat_filter, articles=articles)
 
 @app.route('/article/<id>')
 def read_article(id):
@@ -99,12 +109,20 @@ def read_article(id):
     <div class="container">
         <img src="{{ art.get('img_url') or logo }}" style="width:100%; border-radius:15px; border:1px solid #222;">
         <h1 style="margin:20px 0;">{{ art.get('titre') }}</h1>
+        <div style="margin-bottom:20px;">
+            {% if art.get('mots_cles') %}
+                {% for tag in art.get('mots_cles').split(',') %}
+                    <span class="tag" style="font-size:12px;">#{{ tag.strip() }}</span>
+                {% endfor %}
+            {% endif %}
+        </div>
         <div style="white-space:pre-wrap; font-size:18px;">{{ art.get('texte') }}</div>
         <br><a href="/" class="btn" style="background:#222;">RETOUR</a>
     </div>
     """
     return render_template_string(BASE_HTML.replace('{% block content %}{% endblock %}', content), 
-                                title=art.get('titre'), logo=LOGO_URL, art=art)
+                                title=art.get('titre'), description=art.get('resume'), keywords=art.get('mots_cles'), 
+                                logo=LOGO_URL, art=art)
 
 @app.route(f'/{ADMIN_PATH}/', methods=['GET', 'POST'])
 def admin():
@@ -127,6 +145,7 @@ def admin():
             "texte": request.form['texte'],
             "img_url": request.form['img_url'],
             "categorie": request.form['categorie'],
+            "mots_cles": request.form.get('mots_cles', ''),
             "ts": int(time.time())
         }
         if art_id: requests.patch(f"{SUPABASE_URL}?id=eq.{art_id}", headers=HEADERS, json=data)
@@ -138,9 +157,11 @@ def admin():
     
     admin_ui = """
     <div class="container">
+        <h3>EDITION ARTICLE</h3>
         <form method="post">
             <input type="hidden" name="id" value="{{ art_edit.get('id') if art_edit else '' }}">
             <input name="titre" placeholder="Titre" value="{{ art_edit.get('titre') if art_edit else '' }}" required>
+            <input name="mots_cles" placeholder="Tags (ex: Google, IA)" value="{{ art_edit.get('mots_cles') if art_edit else '' }}">
             <select name="categorie">
                 {% for cat in ["Tech", "Science", "IA", "Espace"] %}
                 <option value="{{cat}}" {% if art_edit and art_edit.get('categorie') == cat %}selected{% endif %}>{{cat}}</option>
@@ -152,15 +173,15 @@ def admin():
         </form>
         <hr style="margin:30px 0; border:1px solid #222;">
         {% for a in all_arts %}
-        <div style="background:#111; padding:15px; border-radius:10px; margin-bottom:10px; border:1px solid #222;">
-            <b>{{ a.get('titre') }}</b>
-            <a href="/{{ admin_path }}/?edit={{ a.get('id') }}" style="color:var(--blue); margin-left:10px;">Modifier</a>
+        <div style="background:#111; padding:15px; border-radius:10px; margin-bottom:10px; border:1px solid #222; display:flex; justify-content:space-between; align-items:center;">
+            <span>{{ a.get('titre') }}</span>
+            <a href="/{{ admin_path }}/?edit={{ a.get('id') }}" style="color:var(--blue); text-decoration:none;">EDIT</a>
         </div>
         {% endfor %}
     </div>
     """
     return render_template_string(BASE_HTML.replace('{% block content %}{% endblock %}', admin_ui), 
-                                title="Admin", logo=LOGO_URL, art_edit=article_to_edit, all_arts=all_articles, admin_path=ADMIN_PATH)
+                                title="Admin", description="", keywords="", logo=LOGO_URL, art_edit=article_to_edit, all_arts=all_articles, admin_path=ADMIN_PATH)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
