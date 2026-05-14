@@ -1,7 +1,7 @@
 import os
 import requests
 import time
-from flask import Flask, render_template_string, request, redirect, session, Markup
+from flask import Flask, request, redirect, session
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_KEY") or "mettabyte_ultra_secret_2026"
