@@ -5,10 +5,13 @@ from flask import Flask, render_template_string, request, redirect, url_for, Res
 
 app = Flask(__name__)
 
-# --- CONFIGURATION SÉCURISÉE (VIA RENDER) ---
+# --- CONFIGURATION SÉCURISÉE ---
+# On récupère les variables depuis Render. 
+# "or" permet de définir une valeur de secours si Render n'est pas encore prêt.
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
-ADMIN_PATH = os.environ.get("ADMIN_PATH") # Utilise ta variable Render
+ADMIN_PATH = os.environ.get("ADMIN_PATH") or "admin-prive" 
+
 LOGO_URL = "https://i.ibb.co/GfZxNrFq/img-1778540891.png"
 SITE_URL = "https://mettabyte.onrender.com"
 
@@ -42,7 +45,7 @@ BASE_HTML = """
         .cat.active { color: var(--blue); border-bottom: 2px solid var(--blue); }
         .container { width: 92%; max-width: 700px; margin: auto; padding: 20px 0; }
         .card { background: #111; border-radius: 15px; overflow: hidden; margin-bottom: 30px; border: 1px solid #222; }
-        .card-img { width: 100%; height: 230px; object-fit: cover; background: #1a1a1a; }
+        .card-img { width: 100%; height: 230px; object-fit: cover; background: #1a1a1a; display: block; }
         .card-body { padding: 20px; }
         .tag { background: #222; color: #aaa; font-size: 10px; padding: 3px 8px; border-radius: 5px; margin-right: 5px; text-transform: uppercase; border: 1px solid #333; }
         .btn { display: block; background: linear-gradient(135deg, var(--blue), var(--purple)); color: #fff; padding: 14px; text-align: center; border-radius: 12px; text-decoration: none; font-weight: bold; margin-top: 10px; border:none; width:100%; box-sizing:border-box; cursor:pointer; }
@@ -86,8 +89,8 @@ def home():
                         {% endfor %}
                     {% endif %}
                 </div>
-                <h2 style="margin: 10px 0; font-size: 22px;">{{ a.get('titre') }}</h2>
-                <p style="color:#aaa; font-size:14px;">{{ a.get('resume') }}...</p>
+                <h2 style="margin: 10px 0; font-size: 22px;">{{ a.get('titre') or 'Sans titre' }}</h2>
+                <p style="color:#aaa; font-size:14px;">{{ a.get('resume') or '...' }}</p>
                 <a href="/article/{{ a.get('id') }}" class="btn">LIRE LA SUITE</a>
             </div>
         </div>
@@ -95,7 +98,7 @@ def home():
     </div>
     """
     return render_template_string(BASE_HTML.replace('{% block content %}{% endblock %}', content), 
-                                title="METTABYTE - Tech & Science", description="Actu High-Tech", 
+                                title="METTABYTE - Tech & Science", description="Actualités Tech", 
                                 keywords="tech, science", logo=LOGO_URL, cats=cats, active_cat=cat_filter, articles=articles)
 
 @app.route('/article/<id>')
@@ -124,7 +127,8 @@ def read_article(id):
                                 title=art.get('titre'), description=art.get('resume'), keywords=art.get('mots_cles'), 
                                 logo=LOGO_URL, art=art)
 
-@app.route(f'/{ADMIN_PATH}/', methods=['GET', 'POST'])
+# ROUTE ADMIN CORRIGÉE (Plus de slash final obligatoire)
+@app.route(f'/{ADMIN_PATH}', methods=['GET', 'POST'])
 def admin():
     edit_id = request.args.get('edit')
     article_to_edit = None
@@ -137,7 +141,7 @@ def admin():
         art_id = request.form.get('id')
         if action == 'delete':
             requests.delete(f"{SUPABASE_URL}?id=eq.{art_id}", headers=HEADERS)
-            return redirect(f'/{ADMIN_PATH}/')
+            return redirect(f'/{ADMIN_PATH}')
         
         data = {
             "titre": request.form['titre'],
@@ -175,7 +179,7 @@ def admin():
         {% for a in all_arts %}
         <div style="background:#111; padding:15px; border-radius:10px; margin-bottom:10px; border:1px solid #222; display:flex; justify-content:space-between; align-items:center;">
             <span>{{ a.get('titre') }}</span>
-            <a href="/{{ admin_path }}/?edit={{ a.get('id') }}" style="color:var(--blue); text-decoration:none;">EDIT</a>
+            <a href="/{{ admin_path }}?edit={{ a.get('id') }}" style="color:var(--blue); text-decoration:none;">EDIT</a>
         </div>
         {% endfor %}
     </div>
@@ -185,4 +189,3 @@ def admin():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
-
