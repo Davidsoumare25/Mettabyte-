@@ -8,7 +8,7 @@ app = Flask(__name__)
 # --- CONFIGURATION SÉCURISÉE (VIA RENDER) ---
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
-ADMIN_PATH = os.environ.get("ADMIN_PATH", "admin-default") # Utilise ta variable Render
+ADMIN_PATH = os.environ.get("ADMIN_PATH") # Utilise ta variable Render
 LOGO_URL = "https://i.ibb.co/GfZxNrFq/img-1778540891.png"
 SITE_URL = "https://mettabyte.onrender.com"
 
