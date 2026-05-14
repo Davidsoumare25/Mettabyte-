@@ -1,18 +1,14 @@
 import os
 import requests
 import time
-from flask import Flask, render_template_string, request, redirect, url_for
+from flask import Flask, render_template_string, request, redirect
 
 app = Flask(__name__)
 
 # --- CONFIGURATION ---
-# On garde les clés via Render (Sécurité)
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
-
-# On fixe l'admin en dur dans le code pour être sûr que ça marche
-ADMIN_PATH = "monadmin77" 
-
+ADMIN_PATH = "moncode123" 
 LOGO_URL = "https://i.ibb.co/GfZxNrFq/img-1778540891.png"
 
 HEADERS = {
@@ -22,7 +18,7 @@ HEADERS = {
     "Prefer": "return=representation"
 }
 
-# --- DESIGN COMPLET (Ton style d'origine restauré) ---
+# --- STYLE CSS (Ton design d'origine) ---
 BASE_HTML = """
 <!DOCTYPE html>
 <html lang="fr">
@@ -47,7 +43,8 @@ BASE_HTML = """
         .tag { background: #222; color: #aaa; font-size: 10px; padding: 3px 8px; border-radius: 5px; margin-right: 5px; text-transform: uppercase; border: 1px solid #333; }
         .btn { display: block; background: linear-gradient(135deg, var(--blue), var(--purple)); color: #fff; padding: 14px; text-align: center; border-radius: 12px; text-decoration: none; font-weight: bold; margin-top: 10px; border:none; width:100%; box-sizing:border-box; cursor:pointer; }
         input, textarea, select { width: 100%; padding: 12px; margin: 8px 0; background: #000; border: 1px solid #333; color: #fff; border-radius: 8px; box-sizing: border-box; }
-        .admin-item { background:#111; padding:15px; border-radius:10px; margin-bottom:10px; border:1px solid #222; display:flex; justify-content:space-between; align-items:center; }
+        .admin-list { background:#111; padding:15px; border-radius:10px; margin-top:20px; border:1px solid #222; }
+        .admin-item { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #222; align-items:center; }
     </style>
 </head>
 <body>
@@ -64,7 +61,7 @@ def home():
     if cat_filter != 'Tous': params["categorie"] = f"eq.{cat_filter}"
     try:
         r = requests.get(SUPABASE_URL, headers=HEADERS, params=params)
-        articles = r.json()
+        articles = r.json() if isinstance(r.json(), list) else []
     except: articles = []
     
     cats = ["Tous", "Science", "Tech", "Espace", "IA"]
@@ -88,7 +85,7 @@ def home():
                     {% endif %}
                 </div>
                 <h2 style="margin: 10px 0; font-size: 22px;">{{ a.get('titre') }}</h2>
-                <p style="color:#aaa; font-size:14px;">{{ a.get('resume') }}...</p>
+                <p style="color:#aaa; font-size:14px;">{{ a.get('resume') or '' }}...</p>
                 <a href="/article/{{ a.get('id') }}" class="btn">LIRE LA SUITE</a>
             </div>
         </div>
@@ -109,26 +106,21 @@ def read_article(id):
     <div class="container">
         <img src="{{ art.get('img_url') or logo }}" style="width:100%; border-radius:15px; border:1px solid #222;">
         <h1 style="margin:20px 0;">{{ art.get('titre') }}</h1>
-        <div style="margin-bottom:20px;">
-            {% if art.get('mots_cles') %}
-                {% for tag in art.get('mots_cles').split(',') %}
-                    <span class="tag" style="font-size:12px;">#{{ tag.strip() }}</span>
-                {% endfor %}
-            {% endif %}
-        </div>
         <div style="white-space:pre-wrap; font-size:18px;">{{ art.get('texte') }}</div>
         <br><a href="/" class="btn" style="background:#222;">RETOUR</a>
     </div>
     """
-    return render_template_string(BASE_HTML.replace('{% block content %}{% endblock %}', content), title=art.get('titre'), logo=LOGO_URL)
+    return render_template_string(BASE_HTML.replace('{% block content %}{% endblock %}', content), title=art.get('titre'), logo=LOGO_URL, art=art)
 
 @app.route(f'/{ADMIN_PATH}', methods=['GET', 'POST'])
 def admin():
     edit_id = request.args.get('edit')
     article_to_edit = None
     if edit_id:
-        r = requests.get(f"{SUPABASE_URL}?id=eq.{edit_id}", headers=HEADERS)
-        if r.json(): article_to_edit = r.json()[0]
+        try:
+            r = requests.get(f"{SUPABASE_URL}?id=eq.{edit_id}", headers=HEADERS)
+            if r.json(): article_to_edit = r.json()[0]
+        except: pass
     
     if request.method == 'POST':
         art_id = request.form.get('id')
@@ -145,16 +137,18 @@ def admin():
         else: requests.post(SUPABASE_URL, headers=HEADERS, json=data)
         return redirect(f'/{ADMIN_PATH}')
 
-    r = requests.get(SUPABASE_URL, headers=HEADERS, params={"order": "ts.desc"})
-    all_arts = r.json() if r.status_code == 200 else []
+    try:
+        r = requests.get(SUPABASE_URL, headers=HEADERS, params={"order": "ts.desc"})
+        all_arts = r.json() if isinstance(r.json(), list) else []
+    except: all_arts = []
     
     admin_ui = """
     <div class="container">
-        <h3>{% if art_edit %}MODIFIER ARTICLE{% else %}NOUVEL ARTICLE{% endif %}</h3>
+        <h3>ADMINISTRATION</h3>
         <form method="post">
             <input type="hidden" name="id" value="{{ art_edit.get('id') if art_edit else '' }}">
             <input name="titre" placeholder="Titre" value="{{ art_edit.get('titre') if art_edit else '' }}" required>
-            <input name="mots_cles" placeholder="Mots-clés (ex: IA, Tech)" value="{{ art_edit.get('mots_cles') if art_edit else '' }}">
+            <input name="mots_cles" placeholder="Mots-clés (IA, Tech...)" value="{{ art_edit.get('mots_cles') if art_edit else '' }}">
             <select name="categorie">
                 {% for cat in ["Tech", "Science", "IA", "Espace"] %}
                 <option value="{{cat}}" {% if art_edit and art_edit.get('categorie') == cat %}selected{% endif %}>{{cat}}</option>
@@ -164,13 +158,14 @@ def admin():
             <textarea name="texte" rows="10" placeholder="Contenu" required>{{ art_edit.get('texte') if art_edit else '' }}</textarea>
             <button type="submit" class="btn">ENREGISTRER</button>
         </form>
-        <hr style="margin:30px 0; border:1px solid #222;">
-        {% for a in all_arts %}
-        <div class="admin-item">
-            <span>{{ a.get('titre') }}</span>
-            <a href="/{{ admin_path }}?edit={{ a.get('id') }}" style="color:var(--blue); text-decoration:none; font-weight:bold;">MODIFIER</a>
+        <div class="admin-list">
+            {% for a in all_arts %}
+            <div class="admin-item">
+                <span style="font-size:14px;">{{ a.get('titre') }}</span>
+                <a href="/{{ admin_path }}?edit={{ a.get('id') }}" style="color:var(--blue); text-decoration:none; font-weight:bold;">EDITER</a>
+            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
     """
     return render_template_string(BASE_HTML.replace('{% block content %}{% endblock %}', admin_ui), 
