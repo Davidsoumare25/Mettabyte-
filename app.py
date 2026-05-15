@@ -14,6 +14,8 @@ ADMIN_PATH = "moncode123"
 LOGO_URL = "https://i.ibb.co/GfZxNrFq/img-1778540891.png"
 ADSENSE_ID = "pub-2847151888169934"
 
+# ⚠️ REMPLACE PAR TON VRAI CODE GOOGLE SEARCH CONSOLE
+SEARCH_CONSOLE_CODE = "COLLE_TON_CODE_ICI"
 
 HEADERS = {
     "apikey": SUPABASE_KEY,
@@ -30,6 +32,8 @@ BASE_HTML = """<!DOCTYPE html>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description" content="%META_DESC%">
 
+    <!-- Google Search Console -->
+    <meta name="google-site-verification" content="%SEARCH_CONSOLE_CODE%">
 
     <!-- Google AdSense -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-%ADSENSE_ID%" crossorigin="anonymous"></script>
@@ -145,6 +149,7 @@ def render_page(content, title, meta_desc="METTABYTE — Tech, IA, Science, Espa
             .replace("%LOGO%", LOGO_URL)
             .replace("%RAW_CONTENT%", content)
             .replace("%META_DESC%", meta_desc)
+            .replace("%SEARCH_CONSOLE_CODE%", SEARCH_CONSOLE_CODE)
             .replace("%ADSENSE_ID%", ADSENSE_ID))
 
 
