@@ -647,8 +647,8 @@ def inscription():
                         return redirect('/')
                     else:
                         error = "Erreur lors de la création du compte."
-            except:
-                error = "Erreur serveur. Réessaie."
+            except Exception as e:
+                error = f"Erreur détaillée : {str(e)}"
 
     error_html   = f'<div class="auth-error">{error}</div>' if error else ""
     content = f"""
