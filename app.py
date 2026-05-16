@@ -348,67 +348,135 @@ BASE_HTML = """<!DOCTYPE html>
     </div>
 
     <script>
-    // SIDEBAR
-    function openSidebar() {
-        document.getElementById('sidebar').classList.add('open');
-        document.getElementById('sidebarOverlay').classList.add('open');
-        document.body.style.overflow = 'hidden';
-    }
-    function closeSidebar() {
-        document.getElementById('sidebar').classList.remove('open');
-        document.getElementById('sidebarOverlay').classList.remove('open');
-        document.body.style.overflow = '';
-    }
+    // ── SIDEBAR ──
+    // Attendre que le DOM soit chargé avant d'attacher les events
+    document.addEventListener('DOMContentLoaded', function() {
 
-    // SCROLL TOP
-    const scrollBtn = document.getElementById('scrollTopBtn');
-    window.addEventListener('scroll', () => {
-        scrollBtn.classList.toggle('visible', window.scrollY > 400);
-    });
+        // SIDEBAR
+        var sidebar        = document.getElementById('sidebar');
+        var sidebarOverlay = document.getElementById('sidebarOverlay');
+        var menuBtn        = document.querySelector('.header-menu-btn');
+        var closeBtn       = document.querySelector('.sidebar-close');
 
-    // RECHERCHE
-    const searchInput = document.getElementById('searchInput');
-    const searchResults = document.getElementById('searchResults');
-    if (searchInput) {
-        let timer;
-        searchInput.addEventListener('input', function() {
-            clearTimeout(timer);
-            const q = this.value.trim();
-            if (!q) { searchResults.classList.remove('visible'); searchResults.innerHTML = ''; return; }
-            timer = setTimeout(() => {
-                fetch('/search?q=' + encodeURIComponent(q))
-                    .then(r => r.json())
-                    .then(data => {
-                        if (!data.length) {
-                            searchResults.innerHTML = '<div class="search-empty">Aucun résultat pour "' + q + '"</div>';
-                        } else {
-                            searchResults.innerHTML = data.map(a =>
-                                '<a href="/article/' + a.id + '" class="search-item">' +
-                                '<img src="' + (a.img_url || '') + '" onerror="this.style.display=\'none\'">' +
-                                '<div><div class="search-item-tag">' + (a.categorie||'') + (a.premium ? ' 👑' : '') + '</div>' +
-                                '<div class="search-item-title">' + a.titre + '</div></div></a>'
-                            ).join('');
+        function openSidebar() {
+            if (!sidebar) return;
+            sidebar.classList.add('open');
+            sidebarOverlay.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeSidebar() {
+            if (!sidebar) return;
+            sidebar.classList.remove('open');
+            sidebarOverlay.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+
+        if (menuBtn)        menuBtn.addEventListener('click', openSidebar);
+        if (closeBtn)       closeBtn.addEventListener('click', closeSidebar);
+        if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
+
+        // SCROLL TOP
+        var scrollBtn = document.getElementById('scrollTopBtn');
+        if (scrollBtn) {
+            window.addEventListener('scroll', function() {
+                scrollBtn.classList.toggle('visible', window.scrollY > 400);
+            });
+            scrollBtn.addEventListener('click', function() {
+                window.scrollTo({top: 0, behavior: 'smooth'});
+            });
+        }
+
+        // ── RECHERCHE ──
+        var searchInput   = document.getElementById('searchInput');
+        var searchResults = document.getElementById('searchResults');
+        if (searchInput && searchResults) {
+            var timer;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(timer);
+                var q = this.value.trim();
+                if (q.length < 2) {
+                    searchResults.style.display = 'none';
+                    searchResults.innerHTML = '';
+                    return;
+                }
+                timer = setTimeout(function() {
+                    fetch('/search?q=' + encodeURIComponent(q))
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            if (!data.length) {
+                                searchResults.innerHTML = '<div class="search-empty">Aucun résultat pour "' + q + '"</div>';
+                            } else {
+                                searchResults.innerHTML = data.map(function(a) {
+                                    var badge = a.premium ? ' 👑' : '';
+                                    var img   = a.img_url ? '<img src="' + a.img_url + '" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0;">' : '';
+                                    return '<a href="/article/' + a.id + '" class="search-item">'
+                                         + img
+                                         + '<div><div class="search-item-tag">' + (a.categorie || '') + badge + '</div>'
+                                         + '<div class="search-item-title">' + a.titre + '</div></div></a>';
+                                }).join('');
+                            }
+                            searchResults.style.display = 'block';
+                        })
+                        .catch(function() {
+                            searchResults.innerHTML = '<div class="search-empty">Erreur de recherche.</div>';
+                            searchResults.style.display = 'block';
+                        });
+                }, 350);
+            });
+
+            document.addEventListener('click', function(e) {
+                if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                    searchResults.style.display = 'none';
+                }
+            });
+        }
+
+        // ── AUTO-REFRESH (mise à jour automatique) ──
+        // Vérifie toutes les 30 secondes si de nouveaux articles ont été publiés
+        // Si oui, recharge la page silencieusement (seulement sur l'accueil)
+        if (window.location.pathname === '/') {
+            var lastCheck = Date.now();
+            setInterval(function() {
+                fetch('/api/last-article')
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.ts && data.ts * 1000 > lastCheck) {
+                            // Nouveau contenu détecté — recharge sans scroller
+                            var scrollY = window.scrollY;
+                            location.reload();
                         }
-                        searchResults.classList.add('visible');
-                    });
-            }, 300);
-        });
-        document.addEventListener('click', e => {
-            if (!searchInput.contains(e.target)) searchResults.classList.remove('visible');
-        });
-    }
+                    })
+                    .catch(function() {});
+            }, 30000); // toutes les 30 secondes
+        }
 
-    // PWA
-    let deferredPrompt;
-    window.addEventListener('beforeinstallprompt', e => {
-        e.preventDefault(); deferredPrompt = e;
-        if (!localStorage.getItem('pwa_dismissed'))
-            setTimeout(() => document.getElementById('pwaBanner').classList.add('show'), 3000);
-    });
-    const pwaBtn = document.getElementById('pwaInstallBtn');
-    if (pwaBtn) pwaBtn.addEventListener('click', () => {
-        if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then(() => { document.getElementById('pwaBanner').classList.remove('show'); deferredPrompt = null; }); }
-    });
+        // PWA
+        var deferredPrompt;
+        window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            deferredPrompt = e;
+            if (!localStorage.getItem('pwa_dismissed')) {
+                setTimeout(function() {
+                    var banner = document.getElementById('pwaBanner');
+                    if (banner) banner.classList.add('show');
+                }, 3000);
+            }
+        });
+        var pwaBtn = document.getElementById('pwaInstallBtn');
+        if (pwaBtn) {
+            pwaBtn.addEventListener('click', function() {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.then(function() {
+                        var banner = document.getElementById('pwaBanner');
+                        if (banner) banner.classList.remove('show');
+                        deferredPrompt = null;
+                    });
+                }
+            });
+        }
+
+    }); // fin DOMContentLoaded
     </script>
 </body>
 </html>"""
@@ -845,6 +913,18 @@ def compte():
 # ─────────────────────────────────────────────
 # RECHERCHE / VUES / UTILITAIRES
 # ─────────────────────────────────────────────
+
+@app.route('/api/last-article')
+def api_last_article():
+    """Retourne le timestamp du dernier article publié — utilisé pour l'auto-refresh."""
+    try:
+        r = requests.get(SUPABASE_URL, headers=HEADERS, params={"order": "ts.desc", "limit": "1", "select": "ts"})
+        data = r.json()
+        ts = data[0]['ts'] if data else 0
+    except:
+        ts = 0
+    return Response(json.dumps({"ts": ts}), mimetype='application/json')
+
 
 @app.route('/search')
 def search():
