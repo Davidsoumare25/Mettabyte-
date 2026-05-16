@@ -447,8 +447,8 @@ def home():
 
     cards = "".join([
         f'<a href="/article/{a["id"]}" class="card">'
-        f'{"<div class=\\"premium-badge\\">👑 Premium</div>" if a.get("premium") else ""}'
-        f'<img src="{a.get("img_url", LOGO_URL)}" class="card-img" loading="lazy">'
+        + ('<div class="premium-badge">👑 Premium</div>' if a.get("premium") else '')
+        + f'<img src="{a.get("img_url", LOGO_URL)}" class="card-img" loading="lazy">'
         f'<div class="card-body">'
         f'<div class="card-tag">{a.get("categorie","TECH")} · {reading_time(a.get("texte",""))} min</div>'
         f'<h2 class="card-title">{a["titre"]}</h2>'
@@ -1000,22 +1000,30 @@ def admin():
     except:
         all_users = []
 
+    def build_art_item(a):
+        premium_span = '<span style="background:rgba(245,197,24,0.1);border:1px solid rgba(245,197,24,0.3);color:#f5c518;font-size:0.7rem;font-weight:700;padding:3px 9px;border-radius:20px;">👑 Premium</span>' if a.get("premium") else ''
+        crown = "👑 " if a.get("premium") else ""
+        vues = a.get("vues", 0)
+        vue_label = f"👁️ {vues} vue{'s' if vues > 1 else ''}"
+        return (
+            '<div class="admin-list-item">'
+            '<div style="flex:1;min-width:0;">'
+            f'<div style="color:#ccc;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{crown}{a["titre"][:50]}...</div>'
+            '<div style="margin-top:5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
+            f'<span style="background:#1a1a1e;border:1px solid #333;color:#00d2ff;font-size:0.7rem;font-weight:700;padding:3px 9px;border-radius:20px;">{a.get("categorie","")}</span>'
+            f'<span style="background:#1a1a1e;border:1px solid #333;color:#aaa;font-size:0.7rem;padding:3px 9px;border-radius:20px;">{vue_label}</span>'
+            f'{premium_span}'
+            '</div></div>'
+            '<div style="display:flex;gap:10px;align-items:center;flex-shrink:0;">'
+            f'<a href="/{ADMIN_PATH}?edit={a["id"]}" class="btn-edit">✏️ Modifier</a>'
+            '<form method="post" style="margin:0;" onsubmit="return confirm(\'Supprimer cet article ?\')">'
+            f'<input type="hidden" name="action" value="delete"><input type="hidden" name="del_id" value="{a["id"]}">'
+            '<button type="submit" class="btn-delete">🗑️</button>'
+            '</form></div></div>'
+        )
+
     list_html = "<h2 style='font-family:Bebas Neue;color:var(--blue);margin-top:40px;'>Articles publiés</h2>" + "".join([
-        f'<div class="admin-list-item">'
-        f'<div style="flex:1; min-width:0;">'
-        f'<div style="color:#ccc;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{"👑 " if a.get("premium") else ""}{a["titre"][:50]}...</div>'
-        f'<div style="margin-top:5px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">'
-        f'<span style="background:#1a1a1e;border:1px solid #333;color:#00d2ff;font-size:0.7rem;font-weight:700;padding:3px 9px;border-radius:20px;">{a.get("categorie","")}</span>'
-        f'<span style="background:#1a1a1e;border:1px solid #333;color:#aaa;font-size:0.7rem;padding:3px 9px;border-radius:20px;">👁️ {a.get("vues",0)} vue{"s" if a.get("vues",0)>1 else ""}</span>'
-        f'{"<span style=\\"background:rgba(245,197,24,0.1);border:1px solid rgba(245,197,24,0.3);color:#f5c518;font-size:0.7rem;font-weight:700;padding:3px 9px;border-radius:20px;\\">👑 Premium</span>" if a.get("premium") else ""}'
-        f'</div></div>'
-        f'<div style="display:flex;gap:10px;align-items:center;flex-shrink:0;">'
-        f'<a href="/{ADMIN_PATH}?edit={a["id"]}" class="btn-edit">✏️ Modifier</a>'
-        f'<form method="post" style="margin:0;" onsubmit="return confirm(\'Supprimer cet article ?\')">'
-        f'<input type="hidden" name="action" value="delete"><input type="hidden" name="del_id" value="{a["id"]}">'
-        f'<button type="submit" class="btn-delete">🗑️</button>'
-        f'</form></div></div>'
-        for a in all_arts
+        build_art_item(a) for a in all_arts
     ])
 
     users_html = '<h2 id="users" style="font-family:Bebas Neue;color:var(--blue);margin-top:40px;">Utilisateurs</h2>' + "".join([
