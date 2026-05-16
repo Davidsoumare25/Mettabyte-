@@ -447,8 +447,8 @@ def home():
 
     cards = "".join([
         f'<a href="/article/{a["id"]}" class="card">'
-        f'{"<div class=\\"premium-badge\\">👑 Premium</div>" if a.get("premium") else ""}'
-        f'<img src="{a.get("img_url", LOGO_URL)}" class="card-img" loading="lazy">'
+        + ('<div class="premium-badge">👑 Premium</div>' if a.get("premium") else '')
+        + f'<img src="{a.get("img_url", LOGO_URL)}" class="card-img" loading="lazy">'
         f'<div class="card-body">'
         f'<div class="card-tag">{a.get("categorie","TECH")} · {reading_time(a.get("texte",""))} min</div>'
         f'<h2 class="card-title">{a["titre"]}</h2>'
@@ -528,12 +528,14 @@ def read_article(id):
             <div class="hero-meta">
                 <span>🏷️ {art.get("categorie","Tech")}</span>
                 <span>⏱️ {read_min} min de lecture</span>
-                <span class="views-badge">👁️ <span id="vueCount">{vues}</span> vues</span>
                 {premium_tag}
             </div>
         </div>
     </div>
-    <script>fetch('/vue/{art["id"]}',{{method:'POST'}}).then(r=>r.text()).then(n=>{{if(document.getElementById('vueCount'))document.getElementById('vueCount').innerText=n;}});</script>
+    <script>
+        // Comptage silencieux — non affiché au lecteur
+        fetch('/vue/{art["id"]}', {{method:'POST'}});
+    </script>
     <div class="article-content">
         {texte_html}
         <br>
@@ -645,8 +647,15 @@ def deconnexion():
 
 
 # ─────────────────────────────────────────────
-# PAGE PREMIUM & PAIEMENT
+# PAGE PREMIUM & PAIEMENT STRIPE
 # ─────────────────────────────────────────────
+
+# Clés Stripe — à renseigner dans les variables d'environnement Render
+STRIPE_SECRET_KEY      = os.environ.get("STRIPE_SECRET_KEY")       # sk_live_...
+STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY")  # pk_live_...
+STRIPE_WEBHOOK_SECRET  = os.environ.get("STRIPE_WEBHOOK_SECRET")   # whsec_...
+STRIPE_PRICE_ID        = os.environ.get("STRIPE_PRICE_ID")         # price_... (1€/mois)
+
 
 @app.route('/premium')
 def premium():
@@ -662,118 +671,138 @@ def premium():
         """
         return render_page(content, "Premium — METTABYTE")
 
+    not_logged_html = """
+        <p style="color:#888;font-size:0.85rem;margin-bottom:1rem;">Connecte-toi pour continuer.</p>
+        <a href="/connexion?next=/premium" class="paywall-btn-premium" style="display:block;text-align:center;margin-bottom:10px;">🔑 Se connecter</a>
+        <a href="/inscription" class="paywall-btn-login" style="display:block;text-align:center;">✉️ Créer un compte</a>
+    """
+    stripe_btn_html = f"""
+        <p style="color:#888;font-size:0.85rem;margin-bottom:1rem;">Paiement sécurisé par Stripe 🔒</p>
+        <a href="/checkout" class="paywall-btn-premium" style="display:block;text-align:center;font-size:1rem;padding:16px;">
+            💳 Payer 1€ / mois par carte
+        </a>
+        <p style="color:#555;font-size:0.72rem;text-align:center;margin-top:10px;">Visa · Mastercard · American Express · Annulable à tout moment</p>
+    """
+
     content = f"""
     <div class="premium-hero">
         <div class="premium-crown">👑</div>
         <div class="premium-title">Passe Premium</div>
-        <p class="premium-sub">Accède à tous les articles exclusifs et soutiens METTABYTE pour seulement <strong>1€ / mois</strong> (500 FCFA).</p>
+        <p class="premium-sub">Accède à tous les articles exclusifs pour seulement <strong>1€ / mois</strong>.</p>
     </div>
     <div class="container" style="padding-bottom:40px;">
         <div class="pricing-card">
             <div class="pricing-price">1€</div>
-            <div class="pricing-period">par mois · soit 500 FCFA</div>
+            <div class="pricing-period">par mois · paiement sécurisé Stripe</div>
             <ul class="pricing-features">
-                <li>Accès illimité aux articles Premium</li>
+                <li>Accès illimité aux articles Premium 👑</li>
                 <li>Contenu exclusif chaque semaine</li>
-                <li>Pas de publicité sur les articles Premium</li>
-                <li>Badge 👑 sur ton profil</li>
+                <li>Badge Premium sur ton profil</li>
                 <li>Annulable à tout moment</li>
             </ul>
-            {"<p style='color:#888;font-size:0.85rem;margin-bottom:1rem;'>Connecte-toi pour continuer.</p><a href='/connexion?next=/premium' class='paywall-btn-premium' style='display:block;text-align:center;margin-bottom:10px;'>🔑 Se connecter</a><a href='/inscription' class='paywall-btn-login' style='display:block;text-align:center;'>✉️ Créer un compte</a>" if not user else '''
-            <p style="color:#888; font-size:0.85rem; margin-bottom:1rem;">Choisis ton moyen de paiement :</p>
-            <div class="pay-methods">
-                <a href="/paiement/wave" class="pay-btn pay-wave">🌊 Wave<br><small style="font-weight:400;">500 FCFA</small></a>
-                <a href="/paiement/carte" class="pay-btn pay-card">💳 Carte bancaire<br><small style="font-weight:400;">1€</small></a>
-            </div>'''}
+            {not_logged_html if not user else stripe_btn_html}
         </div>
     </div>
     """
     return render_page(content, "Premium — METTABYTE")
 
 
-@app.route('/paiement/<methode>')
-def paiement(methode):
+@app.route('/checkout')
+def checkout():
+    """Crée une session Stripe Checkout et redirige l'utilisateur."""
     user = get_user()
     if not user:
         return redirect('/connexion?next=/premium')
+    if user.get('premium'):
+        return redirect('/premium')
 
-    # ── WAVE ──
-    if methode == 'wave':
-        content = f"""
-        <div class="auth-wrap" style="max-width:500px;">
-            <div class="auth-title">Paiement Wave</div>
-            <p class="auth-sub">Envoie <strong>500 FCFA</strong> au numéro Wave ci-dessous, puis entre la référence de ton paiement pour activer ton accès Premium.</p>
-            <div class="auth-card">
-                <div style="text-align:center; background:#1a1a1e; border-radius:14px; padding:20px; margin-bottom:20px;">
-                    <div style="font-size:0.75rem; color:#888; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:8px;">Numéro Wave</div>
-                    <div style="font-family:'Bebas Neue',sans-serif; font-size:2.5rem; color:var(--blue); letter-spacing:2px;">+221 XX XXX XX XX</div>
-                    <div style="font-size:0.8rem; color:#888; margin-top:8px;">Montant : 500 FCFA · Motif : METTABYTE</div>
-                </div>
-                <form method="post" action="/valider-paiement">
-                    <input type="hidden" name="methode" value="wave">
-                    <input class="auth-input" type="text" name="reference" placeholder="Référence de ton paiement Wave" required>
-                    <button type="submit" class="auth-btn" style="background:linear-gradient(135deg,#1a73e8,#0d47a1);">✅ Valider mon paiement</button>
-                </form>
-                <p style="color:#555; font-size:0.75rem; text-align:center; margin-top:16px;">Ton accès sera activé après vérification manuelle (max 24h).</p>
-            </div>
-        </div>
-        """
-    # ── CARTE ──
-    else:
-        content = f"""
-        <div class="auth-wrap" style="max-width:500px;">
-            <div class="auth-title">Paiement par carte</div>
-            <p class="auth-sub">Paiement sécurisé de <strong>1€</strong> par carte bancaire.</p>
-            <div class="auth-card">
-                <form method="post" action="/valider-paiement">
-                    <input type="hidden" name="methode" value="carte">
-                    <label>Numéro de carte</label>
-                    <input class="auth-input" type="text" name="card_num" placeholder="1234 5678 9012 3456" maxlength="19" required>
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                        <div>
-                            <label>Expiration</label>
-                            <input class="auth-input" type="text" name="card_exp" placeholder="MM/AA" maxlength="5" required>
-                        </div>
-                        <div>
-                            <label>CVV</label>
-                            <input class="auth-input" type="text" name="card_cvv" placeholder="123" maxlength="3" required>
-                        </div>
-                    </div>
-                    <label>Nom sur la carte</label>
-                    <input class="auth-input" type="text" name="card_name" placeholder="PRÉNOM NOM" required>
-                    <button type="submit" class="auth-btn" style="margin-top:8px;">💳 Payer 1€ et activer Premium</button>
-                </form>
-                <p style="color:#555; font-size:0.75rem; text-align:center; margin-top:16px;">🔒 Paiement simulé — intègre Stripe pour la production.</p>
-            </div>
-        </div>
-        """
-    return render_page(content, "Paiement — METTABYTE")
-
-
-@app.route('/valider-paiement', methods=['POST'])
-def valider_paiement():
-    """
-    En production : vérifier le paiement via l'API Wave ou Stripe.
-    Ici on active Premium directement après soumission (démo).
-    Pour Wave : vérifie la référence manuellement dans ton tableau de bord Wave.
-    Pour Stripe : utilise stripe.PaymentIntent.create() et un webhook.
-    """
-    user = get_user()
-    if not user:
-        return redirect('/connexion')
     try:
-        requests.patch(SUPABASE_URL_USR + "?id=eq." + str(user['id']), headers=HEADERS, json={"premium": True})
-    except:
-        pass
+        import stripe
+        stripe.api_key = STRIPE_SECRET_KEY
+        base_url = request.url_root.rstrip('/')
+
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            mode='subscription',
+            line_items=[{'price': STRIPE_PRICE_ID, 'quantity': 1}],
+            customer_email=user['email'],
+            metadata={'user_id': str(user['id'])},
+            success_url=base_url + '/premium/succes?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=base_url + '/premium',
+        )
+        return redirect(checkout_session.url, code=303)
+    except Exception as e:
+        content = f"""
+        <div class="auth-wrap" style="text-align:center;">
+            <div class="auth-title" style="color:var(--red);">Erreur</div>
+            <p class="auth-sub">Impossible d'initialiser le paiement : {str(e)}</p>
+            <a href="/premium" class="btn" style="max-width:200px;margin:0 auto;">← Retour</a>
+        </div>
+        """
+        return render_page(content, "Erreur — METTABYTE")
+
+
+@app.route('/premium/succes')
+def premium_succes():
+    """Page de succès après paiement Stripe — activation Premium."""
+    user = get_user()
+    session_id = request.args.get('session_id', '')
+
+    if user and session_id:
+        try:
+            import stripe
+            stripe.api_key = STRIPE_SECRET_KEY
+            checkout_session = stripe.checkout.Session.retrieve(session_id)
+            # Vérif que le paiement appartient bien à cet utilisateur
+            if checkout_session.customer_email == user['email'] and checkout_session.payment_status == 'paid':
+                requests.patch(
+                    SUPABASE_URL_USR + "?id=eq." + str(user['id']),
+                    headers=HEADERS,
+                    json={"premium": True, "stripe_customer": checkout_session.customer}
+                )
+        except:
+            pass
+
     content = """
     <div style="text-align:center; padding:5rem 2rem;">
         <div style="font-size:4rem; margin-bottom:1rem;">🎉</div>
         <h1 style="font-family:'Bebas Neue',sans-serif; font-size:3rem; color:var(--gold);">Bienvenue dans Premium !</h1>
-        <p style="color:#aaa; margin-bottom:2rem;">Ton accès a été activé. Tu peux maintenant lire tous les articles exclusifs.</p>
-        <a href="/" class="btn" style="max-width:250px; margin:0 auto; display:block;">← Retour aux articles</a>
+        <p style="color:#aaa; margin-bottom:0.5rem;">Ton accès a été activé avec succès.</p>
+        <p style="color:#666; font-size:0.85rem; margin-bottom:2rem;">Tu peux maintenant lire tous les articles exclusifs 👑</p>
+        <a href="/" class="btn" style="max-width:260px; margin:0 auto; display:block;">← Découvrir les articles</a>
     </div>
     """
     return render_page(content, "Premium activé — METTABYTE")
+
+
+@app.route('/stripe/webhook', methods=['POST'])
+def stripe_webhook():
+    """
+    Webhook Stripe pour activer Premium automatiquement
+    même si l'utilisateur ferme le navigateur après paiement.
+    À configurer dans ton dashboard Stripe :
+    https://dashboard.stripe.com/webhooks → Endpoint URL : https://ton-site.com/stripe/webhook
+    Événements à écouter : checkout.session.completed
+    """
+    try:
+        import stripe
+        stripe.api_key = STRIPE_SECRET_KEY
+        payload    = request.get_data()
+        sig_header = request.headers.get('Stripe-Signature', '')
+        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+
+        if event['type'] == 'checkout.session.completed':
+            sess    = event['data']['object']
+            uid     = sess.get('metadata', {}).get('user_id')
+            if uid and sess.get('payment_status') == 'paid':
+                requests.patch(
+                    SUPABASE_URL_USR + "?id=eq." + str(uid),
+                    headers=HEADERS,
+                    json={"premium": True, "stripe_customer": sess.get('customer')}
+                )
+    except Exception as e:
+        return Response(str(e), status=400)
+    return Response("ok", status=200)
 
 
 # ─────────────────────────────────────────────
@@ -971,16 +1000,30 @@ def admin():
     except:
         all_users = []
 
+    def build_art_item(a):
+        premium_span = '<span style="background:rgba(245,197,24,0.1);border:1px solid rgba(245,197,24,0.3);color:#f5c518;font-size:0.7rem;font-weight:700;padding:3px 9px;border-radius:20px;">👑 Premium</span>' if a.get("premium") else ''
+        crown = "👑 " if a.get("premium") else ""
+        vues = a.get("vues", 0)
+        vue_label = f"👁️ {vues} vue{'s' if vues > 1 else ''}"
+        return (
+            '<div class="admin-list-item">'
+            '<div style="flex:1;min-width:0;">'
+            f'<div style="color:#ccc;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{crown}{a["titre"][:50]}...</div>'
+            '<div style="margin-top:5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
+            f'<span style="background:#1a1a1e;border:1px solid #333;color:#00d2ff;font-size:0.7rem;font-weight:700;padding:3px 9px;border-radius:20px;">{a.get("categorie","")}</span>'
+            f'<span style="background:#1a1a1e;border:1px solid #333;color:#aaa;font-size:0.7rem;padding:3px 9px;border-radius:20px;">{vue_label}</span>'
+            f'{premium_span}'
+            '</div></div>'
+            '<div style="display:flex;gap:10px;align-items:center;flex-shrink:0;">'
+            f'<a href="/{ADMIN_PATH}?edit={a["id"]}" class="btn-edit">✏️ Modifier</a>'
+            '<form method="post" style="margin:0;" onsubmit="return confirm(\'Supprimer cet article ?\')">'
+            f'<input type="hidden" name="action" value="delete"><input type="hidden" name="del_id" value="{a["id"]}">'
+            '<button type="submit" class="btn-delete">🗑️</button>'
+            '</form></div></div>'
+        )
+
     list_html = "<h2 style='font-family:Bebas Neue;color:var(--blue);margin-top:40px;'>Articles publiés</h2>" + "".join([
-        f'<div class="admin-list-item">'
-        f'<span style="color:#ccc;font-size:0.9rem;">{"👑 " if a.get("premium") else ""}{a["titre"][:45]}... <span style="color:#555;font-size:0.75rem;">👁️ {a.get("vues",0)}</span></span>'
-        f'<div style="display:flex;gap:15px;align-items:center;">'
-        f'<a href="/{ADMIN_PATH}?edit={a["id"]}" class="btn-edit">✏️</a>'
-        f'<form method="post" style="margin:0;" onsubmit="return confirm(\'Supprimer ?\')">'
-        f'<input type="hidden" name="action" value="delete"><input type="hidden" name="del_id" value="{a["id"]}">'
-        f'<button type="submit" class="btn-delete">🗑️</button>'
-        f'</form></div></div>'
-        for a in all_arts
+        build_art_item(a) for a in all_arts
     ])
 
     users_html = '<h2 id="users" style="font-family:Bebas Neue;color:var(--blue);margin-top:40px;">Utilisateurs</h2>' + "".join([
