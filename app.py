@@ -7,7 +7,14 @@ import requests
 from flask import Flask, request, redirect, session, Response
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SESSION_KEY") or "mettabyte_ultra_secret_2026"
+
+# --- SÉCURISATION STRICTE DE LA CLÉ DE SESSION ---
+# Oblige l'application à utiliser une vraie variable d'environnement confidentielle.
+# Si elle est absente, l'application ne démarre pas au lieu de fonctionner en mode vulnérable.
+if not os.environ.get("SESSION_KEY"):
+    raise RuntimeError("ERREUR CRITIQUE : La variable d'environnement SESSION_KEY n'est pas configurée !")
+
+app.secret_key = os.environ.get("SESSION_KEY")
 
 # --- CONFIGURATION ---
 SUPABASE_URL     = os.environ.get("SUPABASE_URL")        # table articles
@@ -198,7 +205,7 @@ BASE_HTML = """<!DOCTYPE html>
         .article-content pre { background:#111; padding:1rem; border-radius:8px; overflow-x:auto; font-family:monospace; color:#0f0; }
 
         /* PAYWALL */
-        .paywall-blur { position:relative; max-height:260px; overflow:hidden; }
+        .paywall-blur { position:relative; max-height:260px; overflow:hidden; opacity:0.3; filter:blur(5px); pointer-events:none; user-select:none; }
         .paywall-blur::after { content:''; position:absolute; bottom:0; left:0; right:0; height:200px; background:linear-gradient(to bottom,transparent,var(--dark) 85%); }
         .paywall-box { max-width:740px; margin:0 auto; padding:0 2rem 3rem; text-align:center; }
         .paywall-icon { font-size:3rem; margin-bottom:1rem; }
@@ -563,9 +570,13 @@ def read_article(id):
     </div>
     """
 
+    # --- CORRECTION DE LA FAILLE PAYWALL (SÉCURISATION DU CONTENU EN AMONT) ---
     if is_premium_art and not is_premium_user:
+        # On extrait un tout petit extrait (les 150 premiers caractères) au lieu de donner le texte entier.
+        # Ainsi, impossible de contourner le paywall via l'inspecteur d'éléments.
+        extrait_protege = art["texte"][:150] + "... [Contenu masqué pour les membres non-premium]"
         texte_html = f"""
-        <div class="paywall-blur">{art["texte"]}</div>
+        <div class="paywall-blur">{extrait_protege}</div>
         <div class="paywall-box">
             <div class="paywall-icon">👑</div>
             <div class="paywall-title">Article Premium</div>
@@ -820,7 +831,12 @@ def paydunya_succes():
             r    = requests.get(paydunya_base_url() + "/checkout-invoice/confirm/" + token, headers=paydunya_headers())
             data = r.json()
             if data.get("status") == "completed":
-                requests.patch(SUPABASE_URL_USR + "?id=eq." + str(user['id']), headers=HEADERS, json={"premium": True})
+                # --- SÉCURISATION SUPPLÉMENTAIRE ---
+                # On s'assure que l'ID utilisateur encapsulé de façon sécurisée par PayDunya dans le custom_data correspond
+                # bien à l'utilisateur actuellement connecté pour éviter les injections de tokens tiers.
+                invoice_uid = data.get("custom_data", {}).get("user_id")
+                if invoice_uid and str(invoice_uid) == str(user['id']):
+                    requests.patch(SUPABASE_URL_USR + "?id=eq." + str(user['id']), headers=HEADERS, json={"premium": True})
         except:
             pass
 
